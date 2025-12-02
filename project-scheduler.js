@@ -21,12 +21,16 @@
         // API endpoints
         projectReportId: 2681,
         workHoursReportId: 3283,
+        parametersReportId: 3248,
+        executorsReportId: 2777,
 
         // Field codes for saving data
         taskDurationCode: 't3094',
         operationDurationCode: 't704',
         taskStartCode: 't798',
         operationStartCode: 't2665',
+        taskExecutorCode: 't797',
+        operationExecutorCode: 't2667',
 
         // Default values
         defaultDuration: 60, // 60 minutes if no normative found
@@ -319,6 +323,229 @@
     }
 
     /**
+     * Parse parameter string in format: ParamID:Value(MIN-MAX) or ParamID:%(-)
+     * Examples:
+     * - "115:849(-)" -> {paramId: "115", value: "849", min: null, max: null, required: false}
+     * - "2673:(4-)" -> {paramId: "2673", value: null, min: 4, max: null, required: false}
+     * - "740:%(-)" -> {paramId: "740", value: null, min: null, max: null, required: true}
+     * - "2673:(1-2)" -> {paramId: "2673", value: null, min: 1, max: 2, required: false}
+     */
+    function parseParameterString(paramStr) {
+        const params = [];
+        if (!paramStr || paramStr.trim() === '') {
+            return params;
+        }
+
+        const parts = paramStr.split(',');
+        for (const part of parts) {
+            const trimmed = part.trim();
+            if (!trimmed) continue;
+
+            const colonIndex = trimmed.indexOf(':');
+            if (colonIndex === -1) continue;
+
+            const paramId = trimmed.substring(0, colonIndex);
+            const valueStr = trimmed.substring(colonIndex + 1);
+
+            const param = {
+                paramId: paramId,
+                value: null,
+                min: null,
+                max: null,
+                required: false
+            };
+
+            // Check for required field marker (%)
+            if (valueStr.includes('%')) {
+                param.required = true;
+            } else {
+                // Check for range in parentheses
+                const rangeMatch = valueStr.match(/\(([^)]+)\)/);
+                if (rangeMatch) {
+                    const rangeStr = rangeMatch[1];
+                    const rangeParts = rangeStr.split('-');
+
+                    if (rangeParts.length === 2) {
+                        const minStr = rangeParts[0].trim();
+                        const maxStr = rangeParts[1].trim();
+
+                        if (minStr !== '') {
+                            const minVal = parseFloat(minStr);
+                            if (!isNaN(minVal)) {
+                                param.min = minVal;
+                            }
+                        }
+
+                        if (maxStr !== '') {
+                            const maxVal = parseFloat(maxStr);
+                            if (!isNaN(maxVal)) {
+                                param.max = maxVal;
+                            }
+                        }
+                    }
+                }
+
+                // Extract value before parentheses
+                const valueBeforeParens = valueStr.split('(')[0].trim();
+                if (valueBeforeParens !== '' && valueBeforeParens !== '%') {
+                    param.value = valueBeforeParens;
+                }
+            }
+
+            params.push(param);
+        }
+
+        return params;
+    }
+
+    /**
+     * Parse busy time string in format: YYYYMMDD:H-H,YYYYMMDD:H-H
+     * Example: "20251124:9-13,20251121:8-12"
+     * Returns array of {date: Date, startHour: number, endHour: number}
+     */
+    function parseBusyTime(busyTimeStr) {
+        const busySlots = [];
+        if (!busyTimeStr || busyTimeStr.trim() === '') {
+            return busySlots;
+        }
+
+        const slots = busyTimeStr.split(',');
+        for (const slot of slots) {
+            const trimmed = slot.trim();
+            if (!trimmed) continue;
+
+            const colonIndex = trimmed.indexOf(':');
+            if (colonIndex === -1) continue;
+
+            const dateStr = trimmed.substring(0, colonIndex); // YYYYMMDD
+            const timeRange = trimmed.substring(colonIndex + 1); // H-H
+
+            // Parse date
+            if (dateStr.length !== 8) continue;
+            const year = parseInt(dateStr.substring(0, 4), 10);
+            const month = parseInt(dateStr.substring(4, 6), 10) - 1; // 0-indexed
+            const day = parseInt(dateStr.substring(6, 8), 10);
+            const date = new Date(year, month, day);
+
+            // Parse time range
+            const timeParts = timeRange.split('-');
+            if (timeParts.length !== 2) continue;
+
+            const startHour = parseInt(timeParts[0], 10);
+            const endHour = parseInt(timeParts[1], 10);
+
+            if (!isNaN(startHour) && !isNaN(endHour)) {
+                busySlots.push({
+                    date: date,
+                    startHour: startHour,
+                    endHour: endHour
+                });
+            }
+        }
+
+        return busySlots;
+    }
+
+    /**
+     * Check if executor is available during the given time slot
+     */
+    function isExecutorAvailable(executor, startTime, endTime, executorAssignments) {
+        // Check pre-existing busy time
+        const busySlots = parseBusyTime(executor['Занятое время']);
+
+        for (const slot of busySlots) {
+            const slotStart = new Date(slot.date);
+            slotStart.setHours(slot.startHour, 0, 0, 0);
+            const slotEnd = new Date(slot.date);
+            slotEnd.setHours(slot.endHour, 0, 0, 0);
+
+            // Check for overlap
+            if (startTime < slotEnd && endTime > slotStart) {
+                return false;
+            }
+        }
+
+        // Check current assignments
+        const executorId = executor['ПользовательID'];
+        const assignments = executorAssignments.get(executorId) || [];
+
+        for (const assignment of assignments) {
+            // Check for overlap
+            if (startTime < assignment.endTime && endTime > assignment.startTime) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate executor against task/operation parameters
+     */
+    function validateExecutorParameters(executor, parameterConstraints) {
+        if (!parameterConstraints || parameterConstraints.length === 0) {
+            return true;
+        }
+
+        for (const constraint of parameterConstraints) {
+            const paramId = constraint.paramId;
+
+            // Map parameter IDs to executor fields
+            let executorValue = null;
+            if (paramId === '2673') {
+                // Квалификация -> Уровень
+                executorValue = parseFloat(executor['Квалификация -> Уровень']);
+            } else if (paramId === '115') {
+                // Пользователь -> Роль
+                executorValue = executor['Роль'];
+            } else if (paramId === '728') {
+                // Пользователь -> Квалификация
+                executorValue = executor['Квалификация'];
+            } else if (paramId === '740') {
+                // Операция -> Дата подтверждения (field must be filled)
+                // This is checked on operation level, not executor level
+                continue;
+            } else if (paramId === '1015') {
+                // Задача проекта -> Подтверждено заказчиком
+                // This is checked on task level, not executor level
+                continue;
+            }
+
+            // Check if required field is filled
+            if (constraint.required) {
+                if (executorValue === null || executorValue === undefined || executorValue === '') {
+                    return false;
+                }
+            }
+
+            // Check exact value match
+            if (constraint.value !== null) {
+                if (executorValue !== constraint.value && executorValue != constraint.value) {
+                    return false;
+                }
+            }
+
+            // Check range
+            if (constraint.min !== null || constraint.max !== null) {
+                const numValue = parseFloat(executorValue);
+                if (isNaN(numValue)) {
+                    return false;
+                }
+
+                if (constraint.min !== null && numValue < constraint.min) {
+                    return false;
+                }
+
+                if (constraint.max !== null && numValue > constraint.max) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Schedule tasks and operations
      */
     function scheduleTasks(projectData, templateLookup, workHours, projectStartDate) {
@@ -394,9 +621,74 @@
                 endTime: endTime,
                 needsDurationSave: durationInfo.source !== 'existing',
                 quantity: parseQuantity(item['Кол-во']),
-                previousDependency: isOperation ? item['Предыдущая Операция'] : item['Предыдущая Задача']
+                previousDependency: isOperation ? item['Предыдущая Операция'] : item['Предыдущая Задача'],
+                parameters: isOperation ? item['Параметры операции'] : item['Параметры задачи'],
+                executorsNeeded: parseInt(item['Исполнителей'] || '1', 10),
+                executors: []
             });
         });
+
+        return scheduled;
+    }
+
+    /**
+     * Assign executors to scheduled tasks and operations
+     */
+    function assignExecutors(scheduled, executors) {
+        // Track executor assignments: Map<executorId, [{startTime, endTime, taskName}]>
+        const executorAssignments = new Map();
+
+        for (const item of scheduled) {
+            const parameterConstraints = parseParameterString(item.parameters);
+            const executorsNeeded = item.executorsNeeded;
+            const assignedExecutors = [];
+
+            // Find suitable executors
+            for (const executor of executors) {
+                if (assignedExecutors.length >= executorsNeeded) {
+                    break;
+                }
+
+                // Check parameter constraints
+                if (!validateExecutorParameters(executor, parameterConstraints)) {
+                    continue;
+                }
+
+                // Check availability
+                if (!isExecutorAvailable(executor, item.startTime, item.endTime, executorAssignments)) {
+                    continue;
+                }
+
+                // Assign executor
+                const executorId = executor['ПользовательID'];
+                const executorName = executor['Исполнитель'];
+
+                assignedExecutors.push({
+                    id: executorId,
+                    name: executorName,
+                    qualificationLevel: executor['Квалификация -> Уровень']
+                });
+
+                // Record assignment
+                if (!executorAssignments.has(executorId)) {
+                    executorAssignments.set(executorId, []);
+                }
+                executorAssignments.get(executorId).push({
+                    startTime: item.startTime,
+                    endTime: item.endTime,
+                    taskName: item.taskName,
+                    operationName: item.isOperation ? item.name : null
+                });
+            }
+
+            // Store assigned executors in item
+            item.executors = assignedExecutors;
+
+            // Log warning if not enough executors found
+            if (assignedExecutors.length < executorsNeeded) {
+                console.warn(`Недостаточно исполнителей для "${item.name}": нужно ${executorsNeeded}, найдено ${assignedExecutors.length}`);
+            }
+        }
 
         return scheduled;
     }
@@ -442,6 +734,31 @@
     }
 
     /**
+     * Save executor assignments to API
+     */
+    async function saveExecutorAssignments(scheduled) {
+        const savePromises = [];
+
+        for (const item of scheduled) {
+            if (item.executors.length === 0) {
+                continue;
+            }
+
+            const fieldCode = item.isOperation ? CONFIG.operationExecutorCode : CONFIG.taskExecutorCode;
+            // Join executor IDs with comma
+            const executorIds = item.executors.map(e => e.id).join(',');
+
+            savePromises.push(
+                saveData(item.id, fieldCode, executorIds)
+                    .then(() => ({ success: true, id: item.id, name: item.name, executors: item.executors }))
+                    .catch(error => ({ success: false, id: item.id, name: item.name, error }))
+            );
+        }
+
+        return await Promise.all(savePromises);
+    }
+
+    /**
      * Display schedule in a table
      */
     function displaySchedule(scheduled, projectName, projectStartDate) {
@@ -465,6 +782,7 @@
                         <th>Количество</th>
                         <th>Время начала</th>
                         <th>Время окончания</th>
+                        <th>Исполнители</th>
                         <th>Зависимость от</th>
                     </tr>
                 </thead>
@@ -478,8 +796,25 @@
                 'default': 'По умолчанию'
             }[item.durationSource] || item.durationSource;
 
+            // Format executors
+            let executorsHtml = '';
+            if (item.executors.length > 0) {
+                executorsHtml = item.executors.map(e =>
+                    `${e.name} (ур.${e.qualificationLevel})`
+                ).join('<br>');
+            } else if (item.executorsNeeded > 0) {
+                executorsHtml = '<span style="color: red;">Не назначен</span>';
+            } else {
+                executorsHtml = '-';
+            }
+
+            // Highlight rows with missing executors
+            const rowStyle = (item.executorsNeeded > 0 && item.executors.length < item.executorsNeeded)
+                ? 'background-color: #fff3cd;'
+                : '';
+
             html += `
-                <tr>
+                <tr style="${rowStyle}">
                     <td>${index + 1}</td>
                     <td>${item.taskName || ''}</td>
                     <td>${item.isOperation ? item.name : ''}</td>
@@ -488,6 +823,7 @@
                     <td>${item.quantity}</td>
                     <td>${formatDateTime(item.startTime)}</td>
                     <td>${formatDateTime(item.endTime)}</td>
+                    <td>${executorsHtml}</td>
                     <td>${item.previousDependency || '-'}</td>
                 </tr>
             `;
@@ -496,7 +832,7 @@
         html += `
                 </tbody>
             </table>
-            <p style="margin-top: 20px;"><em>График рассчитан с учетом рабочего времени и обеденного перерыва.</em></p>
+            <p style="margin-top: 20px;"><em>График рассчитан с учетом рабочего времени, обеденного перерыва, доступности и квалификации исполнителей.</em></p>
         `;
 
         contentDiv.innerHTML = html;
@@ -525,6 +861,12 @@
             console.log('Fetching work hours configuration...');
             const workHoursUrl = buildApiUrl(`/report/${CONFIG.workHoursReportId}?JSON_KV`);
             const workHoursData = await fetchJson(workHoursUrl);
+
+            // Fetch executors data
+            console.log('Fetching executors data...');
+            const executorsUrl = buildApiUrl(`/report/${CONFIG.executorsReportId}?JSON_KV`);
+            const executorsData = await fetchJson(executorsUrl);
+            console.log(`Fetched ${executorsData.length} executors`);
 
             // Parse work hours
             const workHours = {
@@ -570,6 +912,12 @@
             const scheduled = scheduleTasks(projectData, templateLookup, workHours, projectStartDate);
             console.log(`Scheduled ${scheduled.length} items`);
 
+            // Assign executors
+            console.log('Assigning executors...');
+            assignExecutors(scheduled, executorsData);
+            const assignedCount = scheduled.filter(item => item.executors.length > 0).length;
+            console.log(`Assigned executors to ${assignedCount}/${scheduled.length} items`);
+
             // Save durations
             console.log('Saving durations...');
             const durationResults = await saveDurations(scheduled);
@@ -581,6 +929,12 @@
             const startTimeResults = await saveStartTimes(scheduled);
             const startTimeSuccessCount = startTimeResults.filter(r => r.success).length;
             console.log(`Saved ${startTimeSuccessCount}/${startTimeResults.length} start times`);
+
+            // Save executor assignments
+            console.log('Saving executor assignments...');
+            const executorResults = await saveExecutorAssignments(scheduled);
+            const executorSuccessCount = executorResults.filter(r => r.success).length;
+            console.log(`Saved ${executorSuccessCount}/${executorResults.length} executor assignments`);
 
             // Display schedule
             console.log('Displaying schedule...');
