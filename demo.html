@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Scheduler - Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .content {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            margin-top: 20px;
+        }
+        th {
+            background-color: #f0f0f0;
+            padding: 10px;
+            text-align: left;
+        }
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+        }
+        .info {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-left: 4px solid #2196F3;
+            margin: 20px 0;
+        }
+        .warning {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            padding: 15px;
+            border-left: 4px solid #28a745;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <h1>Project Scheduler Demo</h1>
+
+        <div class="info">
+            <strong>Информация:</strong> Эта демо-страница показывает работу планировщика проектов.
+            В реальной системе скрипт будет загружать данные через API, но здесь мы используем тестовые данные.
+        </div>
+
+        <div class="warning">
+            <strong>Внимание:</strong> Для работы с реальным API необходимо:
+            <ul>
+                <li>Разместить скрипт на странице системы integram.io</li>
+                <li>Убедиться, что переменные <code>db</code> и <code>xsrf</code> доступны</li>
+                <li>Настроить правильные ID отчётов в конфигурации</li>
+            </ul>
+        </div>
+
+        <h2>Использование в реальной системе</h2>
+        <p>Для использования скрипта в системе integram.io:</p>
+        <ol>
+            <li>Скопируйте содержимое файла <code>project-scheduler.js</code></li>
+            <li>Вставьте его на страницу через тег <code>&lt;script&gt;</code></li>
+            <li>Убедитесь, что на странице есть div с классом <code>content</code></li>
+            <li>Скрипт автоматически загрузит данные и отобразит график</li>
+        </ol>
+
+        <h2>Пример вставки скрипта:</h2>
+        <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 5px;">
+&lt;div class="content"&gt;&lt;/div&gt;
+&lt;script src="project-scheduler.js"&gt;&lt;/script&gt;
+        </pre>
+
+        <h2>Возможности планировщика:</h2>
+        <div class="success">
+            <ul>
+                <li>✓ Автоматический расчёт длительности на основе шаблонных нормативов</li>
+                <li>✓ Учёт количества при расчёте длительности</li>
+                <li>✓ Сохранение рассчитанной длительности в систему</li>
+                <li>✓ Планирование с учётом рабочего времени (9:00-18:00)</li>
+                <li>✓ Учёт обеденного перерыва (13:00-14:00)</li>
+                <li>✓ Соблюдение зависимостей между задачами и операциями</li>
+                <li>✓ Задачи ≤ 4 часов не разбиваются на разные дни</li>
+                <li>✓ Сохранение времени начала в систему</li>
+                <li>✓ Отображение графика в виде таблицы</li>
+            </ul>
+        </div>
+
+        <h2>Конфигурация:</h2>
+        <p>Основные параметры в начале файла <code>project-scheduler.js</code>:</p>
+        <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 5px;">
+const CONFIG = {
+    projectReportId: 2681,           // ID отчёта с данными проекта
+    workHoursReportId: 3283,         // ID отчёта с настройками рабочего времени
+    taskDurationCode: 't3094',       // Код параметра длительности задачи
+    operationDurationCode: 't704',   // Код параметра длительности операции
+    taskStartCode: 't798',           // Код параметра времени начала задачи
+    operationStartCode: 't2665',     // Код параметра времени начала операции
+    defaultDuration: 60,             // Длительность по умолчанию (минуты)
+    lunchDuration: 60                // Длительность обеда (минуты)
+};
+        </pre>
+
+        <h2>Тестирование:</h2>
+        <p>Для проверки корректности работы запустите тестовый скрипт:</p>
+        <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 5px;">
+node test-scheduler.js
+        </pre>
+
+        <h2>Приоритет источников нормативов:</h2>
+        <ol>
+            <li><strong>Существующий норматив</strong> - если в проекте уже указана длительность &gt; 0</li>
+            <li><strong>Норматив из шаблона × количество</strong> - берётся норматив из шаблонного проекта и умножается на количество</li>
+            <li><strong>Значение по умолчанию</strong> - если норматив не найден в шаблоне (60 минут)</li>
+        </ol>
+
+        <h2>Обработка данных:</h2>
+        <ul>
+            <li><strong>Количество:</strong> Если пустое, 0 или нечисловое → считается = 1</li>
+            <li><strong>Дата старта:</strong> Формат "dd.mm.yyyy" (например, "20.11.2025")</li>
+            <li><strong>Время начала:</strong> Формат "dd.mm.yyyy HH:MM:SS" (например, "29.11.2025 17:39:00")</li>
+        </ul>
+
+        <h2>Проверка перед сдачей:</h2>
+        <div class="success">
+            <h3>Тест 1: Нормативы</h3>
+            <ul>
+                <li>✓ Задача без норматива получает норматив из шаблона</li>
+                <li>✓ Операция без норматива получает норматив из шаблона</li>
+                <li>✓ Умножение на количество работает корректно</li>
+                <li>✓ Существующие нормативы не перезаписываются</li>
+            </ul>
+
+            <h3>Тест 2: Время</h3>
+            <ul>
+                <li>✓ Дата старта проекта парсится корректно</li>
+                <li>✓ Время не назначается на нерабочие часы</li>
+                <li>✓ Обеденный перерыв учитывается</li>
+                <li>✓ Зависимости между задачами соблюдаются</li>
+            </ul>
+
+            <h3>Тест 3: Отображение</h3>
+            <ul>
+                <li>✓ В таблице нет NaN или undefined</li>
+                <li>✓ Даты отображаются в читаемом формате</li>
+                <li>✓ Длительность рассчитывается корректно</li>
+                <li>✓ Статусы нормативов понятны</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
