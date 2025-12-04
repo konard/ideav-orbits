@@ -833,11 +833,11 @@
                 const prevOperation = item['Предыдущая Операция'];
                 if (prevOperation && prevOperation !== '') {
                     // Check grip-specific completion time first if grip is specified
-                    if (grip && gripCompletionTimes.has(grip)) {
-                        const gripTimes = gripCompletionTimes.get(grip);
+                    if (gripId && gripCompletionTimes.has(gripId)) {
+                        const gripTimes = gripCompletionTimes.get(gripId);
                         dependencyTime = gripTimes.get(`op:${prevOperation}`);
                         if (dependencyTime) {
-                            console.log(`      Dependency (grip-specific): waiting for operation "${prevOperation}" on grip "${grip}" (completes at ${formatDateTime(dependencyTime)})`);
+                            console.log(`      Dependency (grip-specific): waiting for operation "${prevOperation}" on grip "${gripId}" (completes at ${formatDateTime(dependencyTime)})`);
                         }
                     }
                     // Fallback to global completion time
@@ -854,11 +854,11 @@
                 const prevTask = item['Предыдущая Задача'];
                 if (prevTask && prevTask !== '') {
                     // Check grip-specific completion time first if grip is specified
-                    if (grip && gripCompletionTimes.has(grip)) {
-                        const gripTimes = gripCompletionTimes.get(grip);
+                    if (gripId && gripCompletionTimes.has(gripId)) {
+                        const gripTimes = gripCompletionTimes.get(gripId);
                         dependencyTime = gripTimes.get(`task:${prevTask}`);
                         if (dependencyTime) {
-                            console.log(`      Dependency (grip-specific): waiting for task "${prevTask}" on grip "${grip}" (completes at ${formatDateTime(dependencyTime)})`);
+                            console.log(`      Dependency (grip-specific): waiting for task "${prevTask}" on grip "${gripId}" (completes at ${formatDateTime(dependencyTime)})`);
                         }
                     }
                     // Fallback to global completion time
@@ -880,11 +880,11 @@
             if (dependencyTime) {
                 startTime = new Date(dependencyTime);
                 console.log(`      Starting after dependency: ${formatDateTime(startTime)}`);
-            } else if (grip) {
+            } else if (gripId) {
                 // For grip-based items without dependencies, they can start at project start time (parallel execution)
                 startTime = new Date(projectStartDate);
                 startTime.setHours(workHours.dayStart, 0, 0, 0);
-                console.log(`      Starting at project start (grip "${grip}" allows parallel execution): ${formatDateTime(startTime)}`);
+                console.log(`      Starting at project start (grip "${gripId}" allows parallel execution): ${formatDateTime(startTime)}`);
             } else {
                 // For items without grip, use sequential scheduling
                 startTime = new Date(currentTime);
@@ -910,17 +910,17 @@
             completionTimes.set(key, endTime);
 
             // Store grip-specific completion time if grip is specified
-            if (grip) {
-                if (!gripCompletionTimes.has(grip)) {
-                    gripCompletionTimes.set(grip, new Map());
+            if (gripId) {
+                if (!gripCompletionTimes.has(gripId)) {
+                    gripCompletionTimes.set(gripId, new Map());
                 }
-                const gripTimes = gripCompletionTimes.get(grip);
+                const gripTimes = gripCompletionTimes.get(gripId);
                 gripTimes.set(key, endTime);
-                console.log(`      Stored grip-specific completion time for "${grip}"`);
+                console.log(`      Stored grip-specific completion time for "${gripId}"`);
             }
 
             // Update current time for next item (only for non-grip items or sequential logic)
-            if (!grip) {
+            if (!gripId) {
                 currentTime = new Date(endTime);
                 console.log(`      Next item will start after: ${formatDateTime(currentTime)}`);
             }
