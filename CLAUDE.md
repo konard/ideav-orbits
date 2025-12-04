@@ -5,11 +5,3 @@ Your forked repository: konard/ideav-orbits
 Original repository (upstream): ideav/orbits
 
 Proceed.
-
----
-
-Issue to solve: undefined
-Your prepared branch: issue-23-50d4f00e
-Your prepared working directory: /tmp/gh-issue-solver-1764862609616
-
-Proceed.
