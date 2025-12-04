@@ -51,13 +51,17 @@
      */
     async function fetchJson(url) {
         try {
+            console.log(`  Fetching from URL: ${url}`);
             const response = await fetch(url);
             if (!response.ok) {
+                console.error(`  HTTP error! status: ${response.status}`);
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return await response.json();
+            const data = await response.json();
+            console.log(`  ✓ Received ${Array.isArray(data) ? data.length + ' items' : 'data'}`);
+            return data;
         } catch (error) {
-            console.error('Error fetching data:', error);
+            console.error('  ✗ Error fetching data:', error);
             throw error;
         }
     }
@@ -122,6 +126,7 @@
      * Build template lookup map for quick access
      */
     function buildTemplateLookup(projectData) {
+        console.log('  Building template lookup map...');
         const templateMap = {
             tasks: new Map(),
             operations: new Map(),
@@ -129,10 +134,17 @@
             operationExecutors: new Map()
         };
 
+        let processedCount = 0;
+        let taskNormativesAdded = 0;
+        let operationNormativesAdded = 0;
+        let taskExecutorsAdded = 0;
+        let operationExecutorsAdded = 0;
+
         projectData.forEach(item => {
             const isTemplate = !item['Статус проекта'] || item['Статус проекта'] !== 'В работе';
 
             if (isTemplate) {
+                processedCount++;
                 const taskName = item['Задача проекта'];
                 const operationName = item['Операция'];
                 const taskNormative = parseDuration(item['Норматив задачи']);
@@ -142,12 +154,16 @@
                 if (taskName && taskNormative > 0) {
                     if (!templateMap.tasks.has(taskName)) {
                         templateMap.tasks.set(taskName, taskNormative);
+                        taskNormativesAdded++;
+                        console.log(`    Added task normative: "${taskName}" = ${taskNormative} min`);
                     }
                 }
 
                 if (operationName && operationNormative > 0) {
                     if (!templateMap.operations.has(operationName)) {
                         templateMap.operations.set(operationName, operationNormative);
+                        operationNormativesAdded++;
+                        console.log(`    Added operation normative: "${operationName}" = ${operationNormative} min`);
                     }
                 }
 
@@ -155,16 +171,23 @@
                 if (taskName && executorsNeeded && executorsNeeded !== '') {
                     if (!templateMap.taskExecutors.has(taskName)) {
                         templateMap.taskExecutors.set(taskName, executorsNeeded);
+                        taskExecutorsAdded++;
+                        console.log(`    Added task executors: "${taskName}" needs ${executorsNeeded} executors`);
                     }
                 }
 
                 if (operationName && executorsNeeded && executorsNeeded !== '') {
                     if (!templateMap.operationExecutors.has(operationName)) {
                         templateMap.operationExecutors.set(operationName, executorsNeeded);
+                        operationExecutorsAdded++;
+                        console.log(`    Added operation executors: "${operationName}" needs ${executorsNeeded} executors`);
                     }
                 }
             }
         });
+
+        console.log(`  Processed ${processedCount} template items`);
+        console.log(`  Summary: ${taskNormativesAdded} task normatives, ${operationNormativesAdded} operation normatives, ${taskExecutorsAdded} task executor specs, ${operationExecutorsAdded} operation executor specs`);
 
         return templateMap;
     }
@@ -197,12 +220,16 @@
      * Priority: 1) Existing duration > 0, 2) Template × quantity, 3) Default
      */
     function calculateDuration(item, templateLookup, isOperation) {
+        const itemName = isOperation ? item['Операция'] : item['Задача проекта'];
+        const itemId = isOperation ? item['ОперацияID'] : item['Задача проектаID'];
+
         const existingDuration = isOperation
             ? parseDuration(item['Длительность операции'])
             : parseDuration(item['Длительность задачи']);
 
         // Priority 1: Use existing duration if present and > 0
         if (existingDuration > 0) {
+            console.log(`      Duration for "${itemName}" (${itemId}): ${existingDuration} min [existing]`);
             return { duration: existingDuration, source: 'existing' };
         }
 
@@ -214,17 +241,22 @@
             const operationName = item['Операция'];
             if (operationName && templateLookup.operations.has(operationName)) {
                 const normative = templateLookup.operations.get(operationName);
-                return { duration: normative * quantity, source: 'template' };
+                const calculatedDuration = normative * quantity;
+                console.log(`      Duration for "${itemName}" (${itemId}): ${normative} min × ${quantity} = ${calculatedDuration} min [template]`);
+                return { duration: calculatedDuration, source: 'template' };
             }
         } else {
             const taskName = item['Задача проекта'];
             if (taskName && templateLookup.tasks.has(taskName)) {
                 const normative = templateLookup.tasks.get(taskName);
-                return { duration: normative * quantity, source: 'template' };
+                const calculatedDuration = normative * quantity;
+                console.log(`      Duration for "${itemName}" (${itemId}): ${normative} min × ${quantity} = ${calculatedDuration} min [template]`);
+                return { duration: calculatedDuration, source: 'template' };
             }
         }
 
         // Priority 3: Use default
+        console.log(`      Duration for "${itemName}" (${itemId}): ${CONFIG.defaultDuration} min [default - no template found]`);
         return { duration: CONFIG.defaultDuration, source: 'default' };
     }
 
@@ -588,24 +620,33 @@
      * Schedule tasks and operations
      */
     function scheduleTasks(projectData, templateLookup, workHours, projectStartDate) {
+        console.log('  Scheduling work items...');
         const scheduled = [];
         const completionTimes = new Map(); // Track when each task/operation completes
 
         // Filter only "В работе" (In progress) items
         const workItems = projectData.filter(item => item['Статус проекта'] === 'В работе');
+        console.log(`  Found ${workItems.length} work items to schedule`);
 
         let currentTime = new Date(projectStartDate);
         currentTime.setHours(workHours.dayStart, 0, 0, 0);
+        console.log(`  Initial scheduling time: ${formatDateTime(currentTime)}`);
 
+        let itemNumber = 0;
         workItems.forEach(item => {
             const isOperation = item['ОперацияID'] && item['ОперацияID'] !== '';
             const itemId = isOperation ? item['ОперацияID'] : item['Задача проектаID'];
             const itemName = isOperation ? item['Операция'] : item['Задача проекта'];
+            const itemType = isOperation ? 'Operation' : 'Task';
 
             // Skip if no name
             if (!itemName || itemName.trim() === '') {
+                console.log(`    Skipping ${itemType} with no name (ID: ${itemId})`);
                 return;
             }
+
+            itemNumber++;
+            console.log(`  --- Scheduling item ${itemNumber}/${workItems.length}: ${itemType} "${itemName}" (${itemId}) ---`);
 
             // Calculate duration
             const durationInfo = calculateDuration(item, templateLookup, isOperation);
@@ -617,29 +658,46 @@
                 const prevOperation = item['Предыдущая Операция'];
                 if (prevOperation && prevOperation !== '') {
                     dependencyTime = completionTimes.get(`op:${prevOperation}`);
+                    if (dependencyTime) {
+                        console.log(`      Dependency: waiting for operation "${prevOperation}" (completes at ${formatDateTime(dependencyTime)})`);
+                    } else {
+                        console.log(`      Dependency: operation "${prevOperation}" not found in completion times`);
+                    }
                 }
             } else {
                 const prevTask = item['Предыдущая Задача'];
                 if (prevTask && prevTask !== '') {
                     dependencyTime = completionTimes.get(`task:${prevTask}`);
+                    if (dependencyTime) {
+                        console.log(`      Dependency: waiting for task "${prevTask}" (completes at ${formatDateTime(dependencyTime)})`);
+                    } else {
+                        console.log(`      Dependency: task "${prevTask}" not found in completion times`);
+                    }
                 }
             }
 
             // Determine start time
             let startTime = new Date(currentTime);
             if (dependencyTime && dependencyTime > currentTime) {
+                console.log(`      Start time moved from ${formatDateTime(currentTime)} to ${formatDateTime(dependencyTime)} due to dependency`);
                 startTime = new Date(dependencyTime);
+            } else {
+                console.log(`      Starting at current time: ${formatDateTime(startTime)}`);
             }
 
             // For tasks <= 4 hours, ensure they fit in one day
             if (cannotSpanDays(durationMinutes) && !fitsInRemainingTime(startTime, durationMinutes, workHours)) {
                 // Move to next day
+                const oldStartTime = new Date(startTime);
                 startTime.setDate(startTime.getDate() + 1);
                 startTime.setHours(workHours.dayStart, 0, 0, 0);
+                console.log(`      Task ≤ 4h doesn't fit today, moving from ${formatDateTime(oldStartTime)} to ${formatDateTime(startTime)}`);
             }
 
             // Calculate end time
+            console.log(`      Calculating end time: adding ${durationMinutes} minutes to ${formatDateTime(startTime)}`);
             const endTime = addWorkingTime(startTime, durationMinutes, workHours);
+            console.log(`      End time: ${formatDateTime(endTime)}`);
 
             // Store completion time for dependencies
             const key = isOperation ? `op:${itemName}` : `task:${itemName}`;
@@ -647,6 +705,7 @@
 
             // Update current time for next item (sequential by default)
             currentTime = new Date(endTime);
+            console.log(`      Next item will start after: ${formatDateTime(currentTime)}`);
 
             // Store scheduled item
             scheduled.push({
@@ -674,39 +733,64 @@
      * Assign executors to scheduled tasks and operations
      */
     function assignExecutors(scheduled, executors) {
+        console.log('  Assigning executors to scheduled items...');
         // Track executor assignments: Map<executorId, [{startTime, endTime, taskName}]>
         const executorAssignments = new Map();
 
+        let itemNumber = 0;
         for (const item of scheduled) {
+            itemNumber++;
+            const itemType = item.isOperation ? 'Operation' : 'Task';
+            console.log(`  --- Assigning executors for item ${itemNumber}/${scheduled.length}: ${itemType} "${item.name}" ---`);
+
             const parameterConstraints = parseParameterString(item.parameters);
             const executorsNeeded = item.executorsNeeded;
             const assignedExecutors = [];
 
+            console.log(`      Executors needed: ${executorsNeeded}`);
+            if (parameterConstraints.length > 0) {
+                console.log(`      Parameter constraints: ${JSON.stringify(parameterConstraints)}`);
+            } else {
+                console.log(`      No parameter constraints`);
+            }
+            console.log(`      Time slot: ${formatDateTime(item.startTime)} - ${formatDateTime(item.endTime)}`);
+
             // Find suitable executors
+            let checkedExecutors = 0;
+            let failedParameterCheck = 0;
+            let failedAvailabilityCheck = 0;
+
             for (const executor of executors) {
                 if (assignedExecutors.length >= executorsNeeded) {
                     break;
                 }
 
+                checkedExecutors++;
+                const executorId = executor['ПользовательID'];
+                const executorName = executor['Исполнитель'];
+
                 // Check parameter constraints
                 if (!validateExecutorParameters(executor, parameterConstraints)) {
+                    failedParameterCheck++;
+                    console.log(`      ✗ Executor "${executorName}" (${executorId}) - failed parameter validation`);
                     continue;
                 }
 
                 // Check availability
                 if (!isExecutorAvailable(executor, item.startTime, item.endTime, executorAssignments)) {
+                    failedAvailabilityCheck++;
+                    console.log(`      ✗ Executor "${executorName}" (${executorId}) - not available during time slot`);
                     continue;
                 }
 
                 // Assign executor
-                const executorId = executor['ПользовательID'];
-                const executorName = executor['Исполнитель'];
-
                 assignedExecutors.push({
                     id: executorId,
                     name: executorName,
                     qualificationLevel: executor['Квалификация -> Уровень']
                 });
+
+                console.log(`      ✓ Assigned executor "${executorName}" (${executorId}) with qualification level ${executor['Квалификация -> Уровень']}`);
 
                 // Record assignment
                 if (!executorAssignments.has(executorId)) {
@@ -723,9 +807,17 @@
             // Store assigned executors in item
             item.executors = assignedExecutors;
 
+            console.log(`      Summary: checked ${checkedExecutors} executors, assigned ${assignedExecutors.length}/${executorsNeeded}`);
+            if (failedParameterCheck > 0) {
+                console.log(`        - Failed parameter checks: ${failedParameterCheck}`);
+            }
+            if (failedAvailabilityCheck > 0) {
+                console.log(`        - Failed availability checks: ${failedAvailabilityCheck}`);
+            }
+
             // Log warning if not enough executors found
             if (assignedExecutors.length < executorsNeeded) {
-                console.warn(`Недостаточно исполнителей для "${item.name}": нужно ${executorsNeeded}, найдено ${assignedExecutors.length}`);
+                console.warn(`      ⚠ Недостаточно исполнителей для "${item.name}": нужно ${executorsNeeded}, найдено ${assignedExecutors.length}`);
             }
         }
 
@@ -736,17 +828,31 @@
      * Save durations to API
      */
     async function saveDurations(scheduled) {
+        console.log('  Saving calculated durations to API...');
         const savePromises = [];
 
         for (const item of scheduled) {
             if (item.needsDurationSave) {
                 const fieldCode = item.isOperation ? CONFIG.operationDurationCode : CONFIG.taskDurationCode;
+                const itemType = item.isOperation ? 'Operation' : 'Task';
+                console.log(`    Saving duration for ${itemType} "${item.name}" (${item.id}): ${item.duration} min to field ${fieldCode}`);
+
                 savePromises.push(
                     saveData(item.id, fieldCode, item.duration.toString())
-                        .then(() => ({ success: true, id: item.id, name: item.name }))
-                        .catch(error => ({ success: false, id: item.id, name: item.name, error }))
+                        .then(() => {
+                            console.log(`      ✓ Successfully saved duration for "${item.name}"`);
+                            return { success: true, id: item.id, name: item.name };
+                        })
+                        .catch(error => {
+                            console.error(`      ✗ Failed to save duration for "${item.name}":`, error);
+                            return { success: false, id: item.id, name: item.name, error };
+                        })
                 );
             }
+        }
+
+        if (savePromises.length === 0) {
+            console.log('    No durations to save (all items have existing durations)');
         }
 
         return await Promise.all(savePromises);
@@ -756,16 +862,26 @@
      * Save start times to API
      */
     async function saveStartTimes(scheduled) {
+        console.log('  Saving scheduled start times to API...');
         const savePromises = [];
 
         for (const item of scheduled) {
             const fieldCode = item.isOperation ? CONFIG.operationStartCode : CONFIG.taskStartCode;
             const startTimeStr = formatDateTime(item.startTime);
+            const itemType = item.isOperation ? 'Operation' : 'Task';
+
+            console.log(`    Saving start time for ${itemType} "${item.name}" (${item.id}): ${startTimeStr} to field ${fieldCode}`);
 
             savePromises.push(
                 saveData(item.id, fieldCode, startTimeStr)
-                    .then(() => ({ success: true, id: item.id, name: item.name }))
-                    .catch(error => ({ success: false, id: item.id, name: item.name, error }))
+                    .then(() => {
+                        console.log(`      ✓ Successfully saved start time for "${item.name}"`);
+                        return { success: true, id: item.id, name: item.name };
+                    })
+                    .catch(error => {
+                        console.error(`      ✗ Failed to save start time for "${item.name}":`, error);
+                        return { success: false, id: item.id, name: item.name, error };
+                    })
             );
         }
 
@@ -776,22 +892,38 @@
      * Save executor assignments to API
      */
     async function saveExecutorAssignments(scheduled) {
+        console.log('  Saving executor assignments to API...');
         const savePromises = [];
 
         for (const item of scheduled) {
             if (item.executors.length === 0) {
+                console.log(`    Skipping "${item.name}" (no executors assigned)`);
                 continue;
             }
 
             const fieldCode = item.isOperation ? CONFIG.operationExecutorCode : CONFIG.taskExecutorCode;
             // Join executor IDs with comma
             const executorIds = item.executors.map(e => e.id).join(',');
+            const executorNames = item.executors.map(e => e.name).join(', ');
+            const itemType = item.isOperation ? 'Operation' : 'Task';
+
+            console.log(`    Saving executors for ${itemType} "${item.name}" (${item.id}): [${executorNames}] (IDs: ${executorIds}) to field ${fieldCode}`);
 
             savePromises.push(
                 saveData(item.id, fieldCode, executorIds)
-                    .then(() => ({ success: true, id: item.id, name: item.name, executors: item.executors }))
-                    .catch(error => ({ success: false, id: item.id, name: item.name, error }))
+                    .then(() => {
+                        console.log(`      ✓ Successfully saved executors for "${item.name}"`);
+                        return { success: true, id: item.id, name: item.name, executors: item.executors };
+                    })
+                    .catch(error => {
+                        console.error(`      ✗ Failed to save executors for "${item.name}":`, error);
+                        return { success: false, id: item.id, name: item.name, error };
+                    })
             );
+        }
+
+        if (savePromises.length === 0) {
+            console.log('    No executor assignments to save');
         }
 
         return await Promise.all(savePromises);
@@ -882,104 +1014,167 @@
      */
     async function main() {
         try {
-            console.log('Starting project scheduler...');
+            console.log('=== Starting project scheduler ===');
+            console.log('Configuration:', CONFIG);
 
             // Show loading message
             const contentDiv = document.querySelector('.content');
             if (contentDiv) {
                 contentDiv.innerHTML = '<p>Загрузка данных и расчет графика...</p>';
+                console.log('Loading message displayed to user');
+            } else {
+                console.warn('Content div not found, schedule display may fail');
             }
 
             // Fetch project data
-            console.log('Fetching project data...');
+            console.log('--- Step 1: Fetching project data ---');
             const projectUrl = buildApiUrl(`/report/${CONFIG.projectReportId}?JSON_KV`);
+            console.log('Project data URL:', projectUrl);
             const projectData = await fetchJson(projectUrl);
-            console.log(`Fetched ${projectData.length} items`);
+            console.log(`✓ Fetched ${projectData.length} items from project report`);
+
+            // Log template vs work items breakdown
+            const templateItems = projectData.filter(item => !item['Статус проекта'] || item['Статус проекта'] !== 'В работе');
+            const workItems = projectData.filter(item => item['Статус проекта'] === 'В работе');
+            console.log(`  - Template items: ${templateItems.length}`);
+            console.log(`  - Work items (В работе): ${workItems.length}`);
 
             // Fetch work hours configuration
-            console.log('Fetching work hours configuration...');
+            console.log('--- Step 2: Fetching work hours configuration ---');
             const workHoursUrl = buildApiUrl(`/report/${CONFIG.workHoursReportId}?JSON_KV`);
+            console.log('Work hours URL:', workHoursUrl);
             const workHoursData = await fetchJson(workHoursUrl);
+            console.log(`✓ Fetched ${workHoursData.length} work hours settings`);
 
             // Fetch executors data
-            console.log('Fetching executors data...');
+            console.log('--- Step 3: Fetching executors data ---');
             const executorsUrl = buildApiUrl(`/report/${CONFIG.executorsReportId}?JSON_KV`);
+            console.log('Executors URL:', executorsUrl);
             const executorsData = await fetchJson(executorsUrl);
-            console.log(`Fetched ${executorsData.length} executors`);
+            console.log(`✓ Fetched ${executorsData.length} executors`);
 
             // Parse work hours
+            console.log('--- Step 4: Parsing work hours configuration ---');
             const workHours = {
                 dayStart: 9,
                 dayEnd: 18,
                 lunchStart: 13
             };
+            console.log('Default work hours:', workHours);
 
             workHoursData.forEach(item => {
                 const code = item['Код'];
                 const value = parseInt(item['Значение'], 10);
+                console.log(`  Processing setting: ${code} = ${value}`);
                 if (code === 'day_start') workHours.dayStart = value;
                 else if (code === 'day_end') workHours.dayEnd = value;
                 else if (code === 'lunch_start') workHours.lunchStart = value;
             });
 
-            console.log('Work hours:', workHours);
+            console.log('✓ Final work hours:', workHours);
+            console.log(`  Work day: ${workHours.dayStart}:00 - ${workHours.dayEnd}:00`);
+            console.log(`  Lunch break: ${workHours.lunchStart}:00 - ${workHours.lunchStart + 1}:00`);
 
             // Find project start date
+            console.log('--- Step 5: Finding project start date ---');
             let projectStartDate = null;
             let projectName = '';
+            console.log('Looking for "В работе" project with start date...');
             for (const item of projectData) {
                 if (item['Статус проекта'] === 'В работе' && item['Старт']) {
                     projectStartDate = parseDate(item['Старт']);
                     projectName = item['Проект'];
+                    console.log(`  Found project: "${projectName}"`);
+                    console.log(`  Start date string: "${item['Старт']}"`);
                     break;
                 }
             }
 
             if (!projectStartDate) {
+                console.error('Failed to find project start date');
                 throw new Error('Не найдена дата старта проекта "В работе"');
             }
 
-            console.log(`Project: ${projectName}, Start date: ${formatDate(projectStartDate)}`);
+            console.log(`✓ Project: ${projectName}`);
+            console.log(`✓ Start date: ${formatDate(projectStartDate)}`);
 
             // Build template lookup
-            console.log('Building template lookup...');
+            console.log('--- Step 6: Building template lookup ---');
             const templateLookup = buildTemplateLookup(projectData);
-            console.log(`Template tasks: ${templateLookup.tasks.size}, operations: ${templateLookup.operations.size}`);
+            console.log(`✓ Template lookup built:`);
+            console.log(`  - Tasks: ${templateLookup.tasks.size}`);
+            console.log(`  - Operations: ${templateLookup.operations.size}`);
+            console.log(`  - Task executors: ${templateLookup.taskExecutors.size}`);
+            console.log(`  - Operation executors: ${templateLookup.operationExecutors.size}`);
 
             // Schedule tasks
-            console.log('Scheduling tasks...');
+            console.log('--- Step 7: Scheduling tasks and operations ---');
             const scheduled = scheduleTasks(projectData, templateLookup, workHours, projectStartDate);
-            console.log(`Scheduled ${scheduled.length} items`);
+            console.log(`✓ Scheduled ${scheduled.length} items`);
+
+            // Log scheduling summary
+            const tasksCount = scheduled.filter(item => !item.isOperation).length;
+            const operationsCount = scheduled.filter(item => item.isOperation).length;
+            console.log(`  - Tasks: ${tasksCount}`);
+            console.log(`  - Operations: ${operationsCount}`);
 
             // Assign executors
-            console.log('Assigning executors...');
+            console.log('--- Step 8: Assigning executors ---');
             assignExecutors(scheduled, executorsData);
             const assignedCount = scheduled.filter(item => item.executors.length > 0).length;
-            console.log(`Assigned executors to ${assignedCount}/${scheduled.length} items`);
+            const itemsNeedingExecutors = scheduled.filter(item => item.executorsNeeded > 0).length;
+            console.log(`✓ Assigned executors to ${assignedCount}/${itemsNeedingExecutors} items needing executors`);
 
             // Save durations
-            console.log('Saving durations...');
+            console.log('--- Step 9: Saving durations to system ---');
+            const itemsNeedingDurationSave = scheduled.filter(item => item.needsDurationSave).length;
+            console.log(`Items requiring duration save: ${itemsNeedingDurationSave}`);
             const durationResults = await saveDurations(scheduled);
             const durationSuccessCount = durationResults.filter(r => r.success).length;
-            console.log(`Saved ${durationSuccessCount}/${durationResults.length} durations`);
+            const durationFailCount = durationResults.filter(r => !r.success).length;
+            console.log(`✓ Saved ${durationSuccessCount}/${durationResults.length} durations`);
+            if (durationFailCount > 0) {
+                console.warn(`  ⚠ ${durationFailCount} duration saves failed`);
+                durationResults.filter(r => !r.success).forEach(r => {
+                    console.error(`    Failed: ${r.name} (${r.id})`, r.error);
+                });
+            }
 
             // Save start times
-            console.log('Saving start times...');
+            console.log('--- Step 10: Saving start times to system ---');
+            console.log(`Items to save: ${scheduled.length}`);
             const startTimeResults = await saveStartTimes(scheduled);
             const startTimeSuccessCount = startTimeResults.filter(r => r.success).length;
-            console.log(`Saved ${startTimeSuccessCount}/${startTimeResults.length} start times`);
+            const startTimeFailCount = startTimeResults.filter(r => !r.success).length;
+            console.log(`✓ Saved ${startTimeSuccessCount}/${startTimeResults.length} start times`);
+            if (startTimeFailCount > 0) {
+                console.warn(`  ⚠ ${startTimeFailCount} start time saves failed`);
+                startTimeResults.filter(r => !r.success).forEach(r => {
+                    console.error(`    Failed: ${r.name} (${r.id})`, r.error);
+                });
+            }
 
             // Save executor assignments
-            console.log('Saving executor assignments...');
+            console.log('--- Step 11: Saving executor assignments to system ---');
+            const itemsWithExecutors = scheduled.filter(item => item.executors.length > 0).length;
+            console.log(`Items with executors to save: ${itemsWithExecutors}`);
             const executorResults = await saveExecutorAssignments(scheduled);
             const executorSuccessCount = executorResults.filter(r => r.success).length;
-            console.log(`Saved ${executorSuccessCount}/${executorResults.length} executor assignments`);
+            const executorFailCount = executorResults.filter(r => !r.success).length;
+            console.log(`✓ Saved ${executorSuccessCount}/${executorResults.length} executor assignments`);
+            if (executorFailCount > 0) {
+                console.warn(`  ⚠ ${executorFailCount} executor assignment saves failed`);
+                executorResults.filter(r => !r.success).forEach(r => {
+                    console.error(`    Failed: ${r.name} (${r.id})`, r.error);
+                });
+            }
 
             // Display schedule
-            console.log('Displaying schedule...');
+            console.log('--- Step 12: Displaying schedule ---');
             displaySchedule(scheduled, projectName, projectStartDate);
+            console.log('✓ Schedule table rendered');
 
-            console.log('Project scheduler completed successfully!');
+            console.log('=== Project scheduler completed successfully! ===');
 
         } catch (error) {
             console.error('Error in main execution:', error);
