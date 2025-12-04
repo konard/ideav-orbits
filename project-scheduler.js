@@ -239,15 +239,46 @@
     }
 
     /**
+     * Merge task and operation parameters
+     * Operation parameters have priority when codes match
+     * Order: non-overridden task params first, then all operation params
+     */
+    function mergeParameters(taskParams, operationParams) {
+        if (!taskParams && !operationParams) {
+            return '';
+        }
+        if (!taskParams) return operationParams;
+        if (!operationParams) return taskParams;
+
+        const taskParamsParsed = parseParameterString(taskParams);
+        const operationParamsParsed = parseParameterString(operationParams);
+
+        // Create a set of operation parameter IDs
+        const operationParamIds = new Set(operationParamsParsed.map(p => p.paramId));
+
+        // Collect non-overridden task parameters
+        const nonOverriddenTaskParams = [];
+        for (const param of taskParamsParsed) {
+            if (!operationParamIds.has(param.paramId)) {
+                nonOverriddenTaskParams.push(param.paramId + ':' + param.valueStr);
+            }
+        }
+
+        // Collect all operation parameters
+        const allOperationParams = operationParamsParsed.map(p => p.paramId + ':' + p.valueStr);
+
+        // Merge: non-overridden task params first, then operation params
+        const merged = [...nonOverriddenTaskParams, ...allOperationParams].join(',');
+        return merged;
+    }
+
+    /**
      * Get parameters for an item (task or operation)
-     * Priority for operations:
-     *   1) Template operation parameters (by operation name)
-     *   2) Template task parameters (by task name) - fallback
-     *   3) Current operation parameters (if filled)
-     *   4) Current task parameters - fallback
-     * Priority for tasks:
-     *   1) Template task parameters (by task name)
-     *   2) Current task parameters (if filled)
+     * For operations: merges task and operation parameters, with operation having priority when codes match
+     * For tasks: uses task parameters only
+     * Priority for both:
+     *   1) Template parameters (by task/operation name)
+     *   2) Current parameters (if filled)
      */
     function getItemParameters(item, templateLookup, isOperation) {
         const taskName = item['Задача проекта'];
@@ -256,34 +287,34 @@
         const currentOperationParams = item['Параметры операции'];
 
         if (isOperation) {
-            // Priority 1: Template operation parameters
-            if (operationName && templateLookup.operationParameters.has(operationName)) {
-                const templateParams = templateLookup.operationParameters.get(operationName);
-                console.log(`      Parameters: using template operation parameters "${templateParams}" for "${operationName}"`);
-                return templateParams;
-            }
-
-            // Priority 2: Template task parameters (fallback for operation)
+            // Get task parameters (template or current)
+            let taskParams = '';
             if (taskName && templateLookup.taskParameters.has(taskName)) {
-                const templateParams = templateLookup.taskParameters.get(taskName);
-                console.log(`      Parameters: template operation parameters not found, using template task parameters "${templateParams}" for task "${taskName}"`);
-                return templateParams;
+                taskParams = templateLookup.taskParameters.get(taskName);
+                console.log(`      Parameters: got template task parameters "${taskParams}" for "${taskName}"`);
+            } else if (currentTaskParams && currentTaskParams.trim() !== '') {
+                taskParams = currentTaskParams;
+                console.log(`      Parameters: got current task parameters "${taskParams}"`);
             }
 
-            // Priority 3: Current operation parameters
-            if (currentOperationParams && currentOperationParams.trim() !== '') {
-                console.log(`      Parameters: no template parameters found, using current operation parameters "${currentOperationParams}"`);
-                return currentOperationParams;
+            // Get operation parameters (template or current)
+            let operationParams = '';
+            if (operationName && templateLookup.operationParameters.has(operationName)) {
+                operationParams = templateLookup.operationParameters.get(operationName);
+                console.log(`      Parameters: got template operation parameters "${operationParams}" for "${operationName}"`);
+            } else if (currentOperationParams && currentOperationParams.trim() !== '') {
+                operationParams = currentOperationParams;
+                console.log(`      Parameters: got current operation parameters "${operationParams}"`);
             }
 
-            // Priority 4: Current task parameters (fallback)
-            if (currentTaskParams && currentTaskParams.trim() !== '') {
-                console.log(`      Parameters: operation parameters empty, falling back to current task parameters "${currentTaskParams}"`);
-                return currentTaskParams;
+            // Merge parameters (operation has priority on matching codes)
+            const merged = mergeParameters(taskParams, operationParams);
+            if (merged !== '') {
+                console.log(`      Parameters: merged result "${merged}"`);
+            } else {
+                console.log(`      Parameters: no parameters found (all sources empty)`);
             }
-
-            console.log(`      Parameters: no parameters found (all sources empty)`);
-            return '';
+            return merged;
         } else {
             // For tasks:
             // Priority 1: Template task parameters
@@ -485,10 +516,10 @@
     /**
      * Parse parameter string in format: ParamID:Value(MIN-MAX) or ParamID:%(-)
      * Examples:
-     * - "115:849(-)" -> {paramId: "115", value: "849", min: null, max: null, required: false}
-     * - "2673:(4-)" -> {paramId: "2673", value: null, min: 4, max: null, required: false}
-     * - "740:%(-)" -> {paramId: "740", value: null, min: null, max: null, required: true}
-     * - "2673:(1-2)" -> {paramId: "2673", value: null, min: 1, max: 2, required: false}
+     * - "115:849(-)" -> {paramId: "115", valueStr: "849(-)", value: "849", min: null, max: null, required: false}
+     * - "2673:(4-)" -> {paramId: "2673", valueStr: "(4-)", value: null, min: 4, max: null, required: false}
+     * - "740:%(-)" -> {paramId: "740", valueStr: "%(-)`, value: null, min: null, max: null, required: true}
+     * - "2673:(1-2)" -> {paramId: "2673", valueStr: "(1-2)", value: null, min: 1, max: 2, required: false}
      */
     function parseParameterString(paramStr) {
         const params = [];
@@ -509,6 +540,7 @@
 
             const param = {
                 paramId: paramId,
+                valueStr: valueStr,
                 value: null,
                 min: null,
                 max: null,
