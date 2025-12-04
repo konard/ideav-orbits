@@ -707,6 +707,31 @@
             currentTime = new Date(endTime);
             console.log(`      Next item will start after: ${formatDateTime(currentTime)}`);
 
+            // Determine parameters (with fallback for operations)
+            let itemParameters;
+            if (isOperation) {
+                const operationParams = item['Параметры операции'];
+                const taskParams = item['Параметры задачи'];
+                if (operationParams && operationParams.trim() !== '') {
+                    itemParameters = operationParams;
+                    console.log(`      Parameters: using operation parameters "${operationParams}"`);
+                } else {
+                    itemParameters = taskParams;
+                    if (taskParams && taskParams.trim() !== '') {
+                        console.log(`      Parameters: operation parameters empty, falling back to task parameters "${taskParams}"`);
+                    } else {
+                        console.log(`      Parameters: both operation and task parameters are empty`);
+                    }
+                }
+            } else {
+                itemParameters = item['Параметры задачи'];
+                if (itemParameters && itemParameters.trim() !== '') {
+                    console.log(`      Parameters: using task parameters "${itemParameters}"`);
+                } else {
+                    console.log(`      Parameters: task parameters are empty`);
+                }
+            }
+
             // Store scheduled item
             scheduled.push({
                 id: itemId,
@@ -720,7 +745,7 @@
                 needsDurationSave: durationInfo.source !== 'existing',
                 quantity: parseQuantity(item['Кол-во']),
                 previousDependency: isOperation ? item['Предыдущая Операция'] : item['Предыдущая Задача'],
-                parameters: isOperation ? item['Параметры операции'] : item['Параметры задачи'],
+                parameters: itemParameters,
                 executorsNeeded: getExecutorsCount(item, templateLookup, isOperation),
                 executors: []
             });
