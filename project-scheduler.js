@@ -131,7 +131,9 @@
             tasks: new Map(),
             operations: new Map(),
             taskExecutors: new Map(),
-            operationExecutors: new Map()
+            operationExecutors: new Map(),
+            taskParameters: new Map(),
+            operationParameters: new Map()
         };
 
         let processedCount = 0;
@@ -139,6 +141,8 @@
         let operationNormativesAdded = 0;
         let taskExecutorsAdded = 0;
         let operationExecutorsAdded = 0;
+        let taskParametersAdded = 0;
+        let operationParametersAdded = 0;
 
         projectData.forEach(item => {
             const isTemplate = !item['Статус проекта'] || item['Статус проекта'] !== 'В работе';
@@ -150,6 +154,8 @@
                 const taskNormative = parseDuration(item['Норматив задачи']);
                 const operationNormative = parseDuration(item['Норматив операции']);
                 const executorsNeeded = item['Исполнителей'];
+                const taskParameters = item['Параметры задачи'];
+                const operationParameters = item['Параметры операции'];
 
                 if (taskName && taskNormative > 0) {
                     if (!templateMap.tasks.has(taskName)) {
@@ -183,11 +189,28 @@
                         console.log(`    Added operation executors: "${operationName}" needs ${executorsNeeded} executors`);
                     }
                 }
+
+                // Store parameters for both tasks and operations
+                if (taskName && taskParameters && taskParameters.trim() !== '') {
+                    if (!templateMap.taskParameters.has(taskName)) {
+                        templateMap.taskParameters.set(taskName, taskParameters);
+                        taskParametersAdded++;
+                        console.log(`    Added task parameters: "${taskName}" = "${taskParameters}"`);
+                    }
+                }
+
+                if (operationName && operationParameters && operationParameters.trim() !== '') {
+                    if (!templateMap.operationParameters.has(operationName)) {
+                        templateMap.operationParameters.set(operationName, operationParameters);
+                        operationParametersAdded++;
+                        console.log(`    Added operation parameters: "${operationName}" = "${operationParameters}"`);
+                    }
+                }
             }
         });
 
         console.log(`  Processed ${processedCount} template items`);
-        console.log(`  Summary: ${taskNormativesAdded} task normatives, ${operationNormativesAdded} operation normatives, ${taskExecutorsAdded} task executor specs, ${operationExecutorsAdded} operation executor specs`);
+        console.log(`  Summary: ${taskNormativesAdded} task normatives, ${operationNormativesAdded} operation normatives, ${taskExecutorsAdded} task executor specs, ${operationExecutorsAdded} operation executor specs, ${taskParametersAdded} task parameters, ${operationParametersAdded} operation parameters`);
 
         return templateMap;
     }
@@ -213,6 +236,72 @@
 
         // Default: 1 executor
         return 1;
+    }
+
+    /**
+     * Get parameters for an item (task or operation)
+     * Priority for operations:
+     *   1) Template operation parameters (by operation name)
+     *   2) Template task parameters (by task name) - fallback
+     *   3) Current operation parameters (if filled)
+     *   4) Current task parameters - fallback
+     * Priority for tasks:
+     *   1) Template task parameters (by task name)
+     *   2) Current task parameters (if filled)
+     */
+    function getItemParameters(item, templateLookup, isOperation) {
+        const taskName = item['Задача проекта'];
+        const operationName = item['Операция'];
+        const currentTaskParams = item['Параметры задачи'];
+        const currentOperationParams = item['Параметры операции'];
+
+        if (isOperation) {
+            // Priority 1: Template operation parameters
+            if (operationName && templateLookup.operationParameters.has(operationName)) {
+                const templateParams = templateLookup.operationParameters.get(operationName);
+                console.log(`      Parameters: using template operation parameters "${templateParams}" for "${operationName}"`);
+                return templateParams;
+            }
+
+            // Priority 2: Template task parameters (fallback for operation)
+            if (taskName && templateLookup.taskParameters.has(taskName)) {
+                const templateParams = templateLookup.taskParameters.get(taskName);
+                console.log(`      Parameters: template operation parameters not found, using template task parameters "${templateParams}" for task "${taskName}"`);
+                return templateParams;
+            }
+
+            // Priority 3: Current operation parameters
+            if (currentOperationParams && currentOperationParams.trim() !== '') {
+                console.log(`      Parameters: no template parameters found, using current operation parameters "${currentOperationParams}"`);
+                return currentOperationParams;
+            }
+
+            // Priority 4: Current task parameters (fallback)
+            if (currentTaskParams && currentTaskParams.trim() !== '') {
+                console.log(`      Parameters: operation parameters empty, falling back to current task parameters "${currentTaskParams}"`);
+                return currentTaskParams;
+            }
+
+            console.log(`      Parameters: no parameters found (all sources empty)`);
+            return '';
+        } else {
+            // For tasks:
+            // Priority 1: Template task parameters
+            if (taskName && templateLookup.taskParameters.has(taskName)) {
+                const templateParams = templateLookup.taskParameters.get(taskName);
+                console.log(`      Parameters: using template task parameters "${templateParams}" for "${taskName}"`);
+                return templateParams;
+            }
+
+            // Priority 2: Current task parameters
+            if (currentTaskParams && currentTaskParams.trim() !== '') {
+                console.log(`      Parameters: no template parameters found, using current task parameters "${currentTaskParams}"`);
+                return currentTaskParams;
+            }
+
+            console.log(`      Parameters: task parameters are empty`);
+            return '';
+        }
     }
 
     /**
@@ -707,30 +796,8 @@
             currentTime = new Date(endTime);
             console.log(`      Next item will start after: ${formatDateTime(currentTime)}`);
 
-            // Determine parameters (with fallback for operations)
-            let itemParameters;
-            if (isOperation) {
-                const operationParams = item['Параметры операции'];
-                const taskParams = item['Параметры задачи'];
-                if (operationParams && operationParams.trim() !== '') {
-                    itemParameters = operationParams;
-                    console.log(`      Parameters: using operation parameters "${operationParams}"`);
-                } else {
-                    itemParameters = taskParams;
-                    if (taskParams && taskParams.trim() !== '') {
-                        console.log(`      Parameters: operation parameters empty, falling back to task parameters "${taskParams}"`);
-                    } else {
-                        console.log(`      Parameters: both operation and task parameters are empty`);
-                    }
-                }
-            } else {
-                itemParameters = item['Параметры задачи'];
-                if (itemParameters && itemParameters.trim() !== '') {
-                    console.log(`      Parameters: using task parameters "${itemParameters}"`);
-                } else {
-                    console.log(`      Parameters: task parameters are empty`);
-                }
-            }
+            // Determine parameters (with template lookup and fallback)
+            const itemParameters = getItemParameters(item, templateLookup, isOperation);
 
             // Store scheduled item
             scheduled.push({
@@ -1131,6 +1198,8 @@
             console.log(`  - Operations: ${templateLookup.operations.size}`);
             console.log(`  - Task executors: ${templateLookup.taskExecutors.size}`);
             console.log(`  - Operation executors: ${templateLookup.operationExecutors.size}`);
+            console.log(`  - Task parameters: ${templateLookup.taskParameters.size}`);
+            console.log(`  - Operation parameters: ${templateLookup.operationParameters.size}`);
 
             // Schedule tasks
             console.log('--- Step 7: Scheduling tasks and operations ---');
