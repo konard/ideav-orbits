@@ -808,8 +808,8 @@
             const itemId = isOperation ? item['ОперацияID'] : item['Задача проектаID'];
             const itemName = isOperation ? item['Операция'] : item['Задача проекта'];
             const itemType = isOperation ? 'Operation' : 'Task';
-            const grip = item['Захватка'] || '';
-            const coordinates = item['Координаты'] || '';
+            const gripId = item['ЗахваткаID'] || '';
+            const gripCoordinates = item['Захватка (координаты)'] || '';
 
             // Skip if no name
             if (!itemName || itemName.trim() === '') {
@@ -819,8 +819,8 @@
 
             itemNumber++;
             console.log(`  --- Scheduling item ${itemNumber}/${workItems.length}: ${itemType} "${itemName}" (${itemId}) ---`);
-            if (grip) {
-                console.log(`      Grip: "${grip}"${coordinates ? ` (${coordinates})` : ''}`);
+            if (gripId || gripCoordinates) {
+                console.log(`      Grip ID: "${gripId}"${gripCoordinates ? `, Coordinates: ${gripCoordinates}` : ''}`);
             }
 
             // Calculate duration
@@ -944,8 +944,8 @@
                 parameters: itemParameters,
                 executorsNeeded: getExecutorsCount(item, templateLookup, isOperation),
                 executors: [],
-                grip: grip,
-                coordinates: coordinates
+                gripId: gripId,
+                gripCoordinates: gripCoordinates
             });
         });
 
@@ -980,7 +980,7 @@
             console.log(`      Time slot: ${formatDateTime(item.startTime)} - ${formatDateTime(item.endTime)}`);
 
             // Parse grip coordinates if available
-            const gripCoords = parseCoordinates(item.coordinates);
+            const gripCoords = parseCoordinates(item.gripCoordinates);
             if (gripCoords) {
                 console.log(`      Grip coordinates: ${gripCoords.lat}, ${gripCoords.lon}`);
             }
@@ -1054,7 +1054,8 @@
                     endTime: item.endTime,
                     taskName: item.taskName,
                     operationName: item.isOperation ? item.name : null,
-                    grip: item.grip
+                    gripId: item.gripId,
+                    gripCoordinates: item.gripCoordinates
                 });
             }
 
@@ -1243,12 +1244,24 @@
                 ? 'background-color: #fff3cd;'
                 : '';
 
+            // Format grip display
+            let gripDisplay = '-';
+            if (item.gripId || item.gripCoordinates) {
+                if (item.gripId && item.gripCoordinates) {
+                    gripDisplay = `${item.gripId}<br><small>${item.gripCoordinates}</small>`;
+                } else if (item.gripId) {
+                    gripDisplay = item.gripId;
+                } else {
+                    gripDisplay = item.gripCoordinates;
+                }
+            }
+
             html += `
                 <tr style="${rowStyle}">
                     <td>${index + 1}</td>
                     <td>${item.taskName || ''}</td>
                     <td>${item.isOperation ? item.name : ''}</td>
-                    <td>${item.grip || '-'}</td>
+                    <td>${gripDisplay}</td>
                     <td>${item.duration}</td>
                     <td>${sourceLabel}</td>
                     <td>${item.quantity}</td>
