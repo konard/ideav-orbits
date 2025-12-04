@@ -29,8 +29,8 @@
         operationDurationCode: 't704',
         taskStartCode: 't798',
         operationStartCode: 't2665',
-        taskExecutorCode: 't797',
-        operationExecutorCode: 't2667',
+        taskExecutorCode: 't690',
+        operationExecutorCode: 't2399',
 
         // Default values
         defaultDuration: 60, // 60 minutes if no normative found
