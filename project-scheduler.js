@@ -23,6 +23,7 @@
         workHoursReportId: 3283,
         parametersReportId: 3248,
         executorsReportId: 2777,
+        cleanupReportId: 2310,
 
         // Field codes for saving data
         taskDurationCode: 't3758',
@@ -35,6 +36,9 @@
         // Default values
         defaultDuration: 60, // 60 minutes if no normative found
         lunchDuration: 60, // 1 hour lunch break in minutes
+
+        // Cleanup options
+        enableCleanup: true, // Set to true to run cleanup before planning
     };
 
     /**
@@ -93,6 +97,45 @@
             return await response.json();
         } catch (error) {
             console.error(`Error saving data for item ${itemId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Clean up project data before planning
+     * This clears all dates, durations, and executor assignments for the project
+     */
+    async function cleanupProjectData(projectId) {
+        if (!projectId) {
+            throw new Error('Project ID is required for cleanup');
+        }
+
+        const url = buildApiUrl(`/report/${CONFIG.cleanupReportId}?FR_ProjID=${projectId}`);
+
+        try {
+            console.log(`  Cleanup URL: ${url}`);
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                console.error(`  HTTP error! status: ${response.status}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // The cleanup report might return JSON or HTML, we'll try to parse it
+            const contentType = response.headers.get('content-type');
+            let result;
+
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+                console.log(`  ✓ Cleanup completed (JSON response)`);
+            } else {
+                result = await response.text();
+                console.log(`  ✓ Cleanup completed (text response)`);
+            }
+
+            return result;
+        } catch (error) {
+            console.error('  ✗ Error during cleanup:', error);
             throw error;
         }
     }
@@ -1299,35 +1342,69 @@
                 console.warn('Content div not found, schedule display may fail');
             }
 
-            // Fetch project data
+            // Fetch project data (initial fetch to get project ID)
             console.log('--- Step 1: Fetching project data ---');
             const projectUrl = buildApiUrl(`/report/${CONFIG.projectReportId}?JSON_KV`);
             console.log('Project data URL:', projectUrl);
             const projectData = await fetchJson(projectUrl);
             console.log(`✓ Fetched ${projectData.length} items from project report`);
 
+            // Clean up project data before planning (if enabled)
+            if (CONFIG.enableCleanup) {
+                console.log('--- Step 2: Cleaning up project data ---');
+
+                // Find the project ID from the active project
+                let projectId = null;
+                for (const item of projectData) {
+                    if (item['Статус проекта'] === 'В работе' && item['ПроектID']) {
+                        projectId = item['ПроектID'];
+                        console.log(`  Found active project ID: ${projectId}`);
+                        break;
+                    }
+                }
+
+                if (projectId) {
+                    console.log(`  Running cleanup for project ${projectId}...`);
+                    await cleanupProjectData(projectId);
+                    console.log(`✓ Cleanup completed for project ${projectId}`);
+
+                    // Re-fetch project data after cleanup
+                    console.log('  Re-fetching project data after cleanup...');
+                    const updatedProjectData = await fetchJson(projectUrl);
+                    console.log(`  ✓ Re-fetched ${updatedProjectData.length} items`);
+                    // Update projectData reference
+                    projectData.length = 0;
+                    projectData.push(...updatedProjectData);
+                } else {
+                    console.warn('  ⚠ No active project found, skipping cleanup');
+                }
+            } else {
+                console.log('--- Step 2: Cleanup disabled (skipped) ---');
+            }
+
             // Log template vs work items breakdown
+            console.log('--- Step 3: Analyzing project data ---');
             const templateItems = projectData.filter(item => !item['Статус проекта'] || item['Статус проекта'] !== 'В работе');
             const workItems = projectData.filter(item => item['Статус проекта'] === 'В работе');
             console.log(`  - Template items: ${templateItems.length}`);
             console.log(`  - Work items (В работе): ${workItems.length}`);
 
             // Fetch work hours configuration
-            console.log('--- Step 2: Fetching work hours configuration ---');
+            console.log('--- Step 4: Fetching work hours configuration ---');
             const workHoursUrl = buildApiUrl(`/report/${CONFIG.workHoursReportId}?JSON_KV`);
             console.log('Work hours URL:', workHoursUrl);
             const workHoursData = await fetchJson(workHoursUrl);
             console.log(`✓ Fetched ${workHoursData.length} work hours settings`);
 
             // Fetch executors data
-            console.log('--- Step 3: Fetching executors data ---');
+            console.log('--- Step 5: Fetching executors data ---');
             const executorsUrl = buildApiUrl(`/report/${CONFIG.executorsReportId}?JSON_KV`);
             console.log('Executors URL:', executorsUrl);
             const executorsData = await fetchJson(executorsUrl);
             console.log(`✓ Fetched ${executorsData.length} executors`);
 
             // Parse work hours
-            console.log('--- Step 4: Parsing work hours configuration ---');
+            console.log('--- Step 6: Parsing work hours configuration ---');
             const workHours = {
                 dayStart: 9,
                 dayEnd: 18,
@@ -1349,7 +1426,7 @@
             console.log(`  Lunch break: ${workHours.lunchStart}:00 - ${workHours.lunchStart + 1}:00`);
 
             // Find project start date
-            console.log('--- Step 5: Finding project start date ---');
+            console.log('--- Step 7: Finding project start date ---');
             let projectStartDate = null;
             let projectName = '';
             console.log('Looking for "В работе" project with start date...');
@@ -1372,7 +1449,7 @@
             console.log(`✓ Start date: ${formatDate(projectStartDate)}`);
 
             // Build template lookup
-            console.log('--- Step 6: Building template lookup ---');
+            console.log('--- Step 8: Building template lookup ---');
             const templateLookup = buildTemplateLookup(projectData);
             console.log(`✓ Template lookup built:`);
             console.log(`  - Tasks: ${templateLookup.tasks.size}`);
@@ -1383,7 +1460,7 @@
             console.log(`  - Operation parameters: ${templateLookup.operationParameters.size}`);
 
             // Schedule tasks
-            console.log('--- Step 7: Scheduling tasks and operations ---');
+            console.log('--- Step 9: Scheduling tasks and operations ---');
             const scheduled = scheduleTasks(projectData, templateLookup, workHours, projectStartDate);
             console.log(`✓ Scheduled ${scheduled.length} items`);
 
@@ -1394,14 +1471,14 @@
             console.log(`  - Operations: ${operationsCount}`);
 
             // Assign executors
-            console.log('--- Step 8: Assigning executors ---');
+            console.log('--- Step 10: Assigning executors ---');
             assignExecutors(scheduled, executorsData);
             const assignedCount = scheduled.filter(item => item.executors.length > 0).length;
             const itemsNeedingExecutors = scheduled.filter(item => item.executorsNeeded > 0).length;
             console.log(`✓ Assigned executors to ${assignedCount}/${itemsNeedingExecutors} items needing executors`);
 
             // Save durations
-            console.log('--- Step 9: Saving durations to system ---');
+            console.log('--- Step 11: Saving durations to system ---');
             const itemsNeedingDurationSave = scheduled.filter(item => item.needsDurationSave).length;
             console.log(`Items requiring duration save: ${itemsNeedingDurationSave}`);
             const durationResults = await saveDurations(scheduled);
@@ -1416,7 +1493,7 @@
             }
 
             // Save start times
-            console.log('--- Step 10: Saving start times to system ---');
+            console.log('--- Step 12: Saving start times to system ---');
             console.log(`Items to save: ${scheduled.length}`);
             const startTimeResults = await saveStartTimes(scheduled);
             const startTimeSuccessCount = startTimeResults.filter(r => r.success).length;
@@ -1430,7 +1507,7 @@
             }
 
             // Save executor assignments
-            console.log('--- Step 11: Saving executor assignments to system ---');
+            console.log('--- Step 13: Saving executor assignments to system ---');
             const itemsWithExecutors = scheduled.filter(item => item.executors.length > 0).length;
             console.log(`Items with executors to save: ${itemsWithExecutors}`);
             const executorResults = await saveExecutorAssignments(scheduled);
@@ -1445,7 +1522,7 @@
             }
 
             // Display schedule
-            console.log('--- Step 12: Displaying schedule ---');
+            console.log('--- Step 14: Displaying schedule ---');
             displaySchedule(scheduled, projectName, projectStartDate);
             console.log('✓ Schedule table rendered');
 
