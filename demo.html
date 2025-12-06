@@ -77,6 +77,32 @@
             <li>Скрипт автоматически загрузит данные и отобразит график</li>
         </ol>
 
+        <h2>GET-параметры в URL</h2>
+        <div class="info">
+            <p>Скрипт поддерживает следующие GET-параметры в URL для настройки поведения:</p>
+            <ul>
+                <li><strong>enableCleanup</strong> - флаг очистки данных проекта перед планированием
+                    <ul>
+                        <li><code>true</code> или <code>1</code> - включить очистку</li>
+                        <li><code>false</code> или <code>0</code> - отключить очистку</li>
+                        <li>По умолчанию: <code>false</code></li>
+                    </ul>
+                </li>
+                <li><strong>ProjID</strong> - ID проекта для планирования
+                    <ul>
+                        <li>Числовое значение - ID конкретного проекта</li>
+                        <li>Если не указан, скрипт автоматически определит активный проект (со статусом "В работе")</li>
+                    </ul>
+                </li>
+            </ul>
+            <p><strong>Примеры использования:</strong></p>
+            <ul>
+                <li><code>page.html?enableCleanup=true</code> - включить очистку</li>
+                <li><code>page.html?ProjID=123</code> - планировать проект с ID 123</li>
+                <li><code>page.html?enableCleanup=true&ProjID=456</code> - очистить и планировать проект 456</li>
+            </ul>
+        </div>
+
         <h2>Пример вставки скрипта:</h2>
         <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 5px;">
 &lt;div class="content"&gt;&lt;/div&gt;
@@ -119,7 +145,10 @@ const CONFIG = {
     lunchDuration: 60,               // Длительность обеда (минуты)
 
     // Cleanup options
-    enableCleanup: true              // Включить очистку данных перед планированием
+    enableCleanup: false,            // По умолчанию false (может быть переопределено через URL)
+
+    // Project ID (может быть переопределено через URL)
+    projectId: null                  // Если null, автоопределение из активного проекта
 };
         </pre>
 
@@ -131,10 +160,10 @@ const CONFIG = {
                 <li>Удаляются все рассчитанные длительности</li>
                 <li>Удаляются все назначения исполнителей</li>
             </ul>
-            <p>Для включения/выключения этой функции используйте параметр <code>enableCleanup</code> в конфигурации:</p>
+            <p>Для включения/выключения этой функции используйте:</p>
             <ul>
-                <li><code>enableCleanup: true</code> - очистка включена (рекомендуется)</li>
-                <li><code>enableCleanup: false</code> - очистка отключена</li>
+                <li><strong>GET-параметр в URL</strong> (рекомендуется): <code>?enableCleanup=true</code></li>
+                <li><strong>Параметр в конфигурации:</strong> <code>enableCleanup: true</code></li>
             </ul>
             <p><strong>Примечание:</strong> Очистка использует отчёт с ID <code>2310</code>, который принимает параметр <code>FR_ProjID</code> (ID проекта).</p>
         </div>

@@ -38,8 +38,32 @@
         lunchDuration: 60, // 1 hour lunch break in minutes
 
         // Cleanup options
-        enableCleanup: true, // Set to true to run cleanup before planning
+        enableCleanup: false, // Default is false, can be overridden by URL parameter
+
+        // Project ID (can be overridden by URL parameter)
+        projectId: null, // If null, will auto-detect from active project
     };
+
+    /**
+     * Parse URL parameters and update CONFIG
+     */
+    function parseUrlParameters() {
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // Parse enableCleanup parameter
+        if (urlParams.has('enableCleanup')) {
+            const enableCleanupParam = urlParams.get('enableCleanup');
+            CONFIG.enableCleanup = enableCleanupParam === 'true' || enableCleanupParam === '1';
+            console.log(`  URL parameter: enableCleanup = ${CONFIG.enableCleanup}`);
+        }
+
+        // Parse ProjID parameter
+        if (urlParams.has('ProjID')) {
+            const projIdParam = urlParams.get('ProjID');
+            CONFIG.projectId = projIdParam ? parseInt(projIdParam, 10) : null;
+            console.log(`  URL parameter: ProjID = ${CONFIG.projectId}`);
+        }
+    }
 
     /**
      * Build API URL with host and database
@@ -1331,6 +1355,11 @@
     async function main() {
         try {
             console.log('=== Starting project scheduler ===');
+
+            // Parse URL parameters first
+            console.log('--- Parsing URL parameters ---');
+            parseUrlParameters();
+
             console.log('Configuration:', CONFIG);
 
             // Show loading message
@@ -1353,14 +1382,20 @@
             if (CONFIG.enableCleanup) {
                 console.log('--- Step 2: Cleaning up project data ---');
 
-                // Find the project ID from the active project
-                let projectId = null;
-                for (const item of projectData) {
-                    if (item['Статус проекта'] === 'В работе' && item['ПроектID']) {
-                        projectId = item['ПроектID'];
-                        console.log(`  Found active project ID: ${projectId}`);
-                        break;
+                // Use project ID from URL parameter or find from active project
+                let projectId = CONFIG.projectId;
+
+                if (!projectId) {
+                    // Auto-detect project ID from active project
+                    for (const item of projectData) {
+                        if (item['Статус проекта'] === 'В работе' && item['ПроектID']) {
+                            projectId = item['ПроектID'];
+                            console.log(`  Found active project ID: ${projectId}`);
+                            break;
+                        }
                     }
+                } else {
+                    console.log(`  Using project ID from URL parameter: ${projectId}`);
                 }
 
                 if (projectId) {
