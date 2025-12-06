@@ -17,7 +17,7 @@
 
     const CONFIG = {
         // API endpoints
-        projectListReportId: 4363, // Projects list with filters
+        projectListReportId: 4472, // Projects list with filters
         executionPlanReportId: 4363, // Execution plan for specific project
         cleanupReportId: 2310, // Cleanup project data
 
