@@ -1373,7 +1373,12 @@
 
             // Fetch project data (initial fetch to get project ID)
             console.log('--- Step 1: Fetching project data ---');
-            const projectUrl = buildApiUrl(`/report/${CONFIG.projectReportId}?JSON_KV`);
+            let projectUrl = buildApiUrl(`/report/${CONFIG.projectReportId}?JSON_KV`);
+            // Add ProjID parameter if available from URL
+            if (CONFIG.projectId) {
+                projectUrl += `&FR_ProjID=${CONFIG.projectId}`;
+                console.log(`Adding ProjID parameter: ${CONFIG.projectId}`);
+            }
             console.log('Project data URL:', projectUrl);
             const projectData = await fetchJson(projectUrl);
             console.log(`✓ Fetched ${projectData.length} items from project report`);
