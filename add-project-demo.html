@@ -73,7 +73,7 @@
                 <li>Шаблон Проекта - только проекты где Родительский проект = "Типовой проект"</li>
             </ul>
         </li>
-        <li>✅ Создание записи через API (<code>/apix/_m_new</code>)</li>
+        <li>✅ Создание записи через API (<code>/_m_new</code>)</li>
         <li>✅ Автоматическое обновление списка проектов после создания</li>
     </ul>
 
@@ -96,15 +96,15 @@
     <h3>1. Загрузка метаданных</h3>
     <p>При первом открытии формы добавления проекта, система:</p>
     <ul>
-        <li>Получает список всех таблиц через <code>/apix/dict</code></li>
+        <li>Получает список всех таблиц через <code>/dict</code></li>
         <li>Находит ID таблицы "Проект"</li>
-        <li>Загружает метаданные таблицы через <code>/apix/metadata/{table_id}</code></li>
+        <li>Загружает метаданные таблицы через <code>/metadata/{table_id}</code></li>
         <li>Определяет ID полей и их типы</li>
     </ul>
 
     <div class="code-block">
-        <pre>GET https://integram.io/orbits/apix/dict?JSON=1
-GET https://integram.io/orbits/apix/metadata/{projectTableId}?JSON=1</pre>
+        <pre>GET https://integram.io/orbit/dict?JSON=1
+GET https://integram.io/orbit/metadata/{projectTableId}?JSON=1</pre>
     </div>
 
     <h3>2. Загрузка справочных данных</h3>
@@ -116,9 +116,9 @@ GET https://integram.io/orbits/apix/metadata/{projectTableId}?JSON=1</pre>
     </ul>
 
     <div class="code-block">
-        <pre>GET https://integram.io/orbits/apix/_ref_reqs/{statusFieldId}?JSON=1
-GET https://integram.io/orbits/apix/_ref_reqs/{templateFieldId}?JSON=1
-GET https://integram.io/orbits/apix/object/{projectTableId}?JSON_DATA=1</pre>
+        <pre>GET https://integram.io/orbit/_ref_reqs/{statusFieldId}?JSON=1
+GET https://integram.io/orbit/_ref_reqs/{templateFieldId}?JSON=1
+GET https://integram.io/orbit/object/{projectTableId}?JSON_DATA=1</pre>
     </div>
 
     <h3>3. Фильтрация шаблонов проектов</h3>
@@ -137,7 +137,7 @@ GET https://integram.io/orbits/apix/object/{projectTableId}?JSON_DATA=1</pre>
     <p>При отправке формы выполняется POST запрос:</p>
 
     <div class="code-block">
-        <pre>POST https://integram.io/orbits/apix/_m_new/{projectTableId}?JSON=1
+        <pre>POST https://integram.io/orbit/_m_new/{projectTableId}?JSON=1
 Content-Type: application/x-www-form-urlencoded
 
 up=1&
@@ -170,11 +170,11 @@ t{field2_id}={value2}&
     <h3>Получение метаданных таблицы Проект</h3>
     <div class="code-block">
         <pre>// 1. Найти ID таблицы Проект
-const tables = await fetch('https://integram.io/orbits/apix/dict?JSON=1').then(r => r.json());
+const tables = await fetch('https://integram.io/orbit/dict?JSON=1').then(r => r.json());
 const projectTableId = Object.entries(tables).find(([id, name]) => name === 'Проект')[0];
 
 // 2. Получить метаданные
-const metadata = await fetch(`https://integram.io/orbits/apix/metadata/${projectTableId}?JSON=1`)
+const metadata = await fetch(`https://integram.io/orbit/metadata/${projectTableId}?JSON=1`)
     .then(r => r.json());
 
 // 3. Найти нужные поля
@@ -192,7 +192,7 @@ formData.append(`t${statusFieldId}`, planStatusId);
 formData.append(`t${dateFieldId}`, '08.12.2025');
 
 const result = await fetch(
-    `https://integram.io/orbits/apix/_m_new/${projectTableId}?JSON=1`,
+    `https://integram.io/orbit/_m_new/${projectTableId}?JSON=1`,
     {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
