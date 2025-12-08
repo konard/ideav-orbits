@@ -13,11 +13,3 @@ Your prepared branch: issue-25-ce19f963
 Your prepared working directory: /tmp/gh-issue-solver-1764870658409
 
 Proceed.
-
----
-
-Issue to solve: undefined
-Your prepared branch: issue-66-65b3340d
-Your prepared working directory: /tmp/gh-issue-solver-1765229525977
-
-Proceed.
