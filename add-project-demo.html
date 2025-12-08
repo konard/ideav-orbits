@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демо: Добавление проекта - Project Workspace</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .code-block {
+            background-color: #f5f5f5;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        pre {
+            margin: 0;
+        }
+        .note {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        ul {
+            margin: 10px 0;
+        }
+        li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Демонстрация функционала добавления проекта</h1>
+
+    <div class="success">
+        <strong>Решение issue #50:</strong> Функционал добавления проекта в Рабочее место управления проектами
+    </div>
+
+    <h2>Описание</h2>
+    <p>Данная демонстрация показывает новый функционал добавления проекта, реализованный в <code>project-workspace.js</code>.</p>
+
+    <h2>Что реализовано</h2>
+    <ul>
+        <li>✅ Кнопка "Добавить проект" вверху формы</li>
+        <li>✅ Модальная форма для заполнения данных нового проекта</li>
+        <li>✅ Динамическое получение структуры таблицы Проект через API</li>
+        <li>✅ Все необходимые поля:
+            <ul>
+                <li>Проект (название) - обязательное поле</li>
+                <li>Описание</li>
+                <li>Заказчик</li>
+                <li>Статус проекта - с дефолтным значением "План"</li>
+                <li>Дата - с дефолтным значением сегодняшней даты</li>
+                <li>Старт</li>
+                <li>Срок</li>
+                <li>Бюджет</li>
+                <li>Родительский проект</li>
+                <li>Объект</li>
+                <li>Шаблон Проекта - только проекты где Родительский проект = "Типовой проект"</li>
+            </ul>
+        </li>
+        <li>✅ Создание записи через API (<code>/apix/_m_new</code>)</li>
+        <li>✅ Автоматическое обновление списка проектов после создания</li>
+    </ul>
+
+    <h2>Использование</h2>
+
+    <p>Включите скрипт на странице Интеграм:</p>
+
+    <div class="code-block">
+        <pre>&lt;div class="content"&gt;&lt;/div&gt;
+&lt;script&gt;
+    // Установите глобальные переменные
+    window.db = 'orbits'; // имя базы данных
+    window.xsrf = 'your_xsrf_token_here'; // XSRF токен
+&lt;/script&gt;
+&lt;script src="project-workspace.js"&gt;&lt;/script&gt;</pre>
+    </div>
+
+    <h2>Как это работает</h2>
+
+    <h3>1. Загрузка метаданных</h3>
+    <p>При первом открытии формы добавления проекта, система:</p>
+    <ul>
+        <li>Получает список всех таблиц через <code>/apix/dict</code></li>
+        <li>Находит ID таблицы "Проект"</li>
+        <li>Загружает метаданные таблицы через <code>/apix/metadata/{table_id}</code></li>
+        <li>Определяет ID полей и их типы</li>
+    </ul>
+
+    <div class="code-block">
+        <pre>GET https://integram.io/orbits/apix/dict?JSON=1
+GET https://integram.io/orbits/apix/metadata/{projectTableId}?JSON=1</pre>
+    </div>
+
+    <h3>2. Загрузка справочных данных</h3>
+    <p>Для выпадающих списков загружаются варианты выбора:</p>
+    <ul>
+        <li>Статусы проектов (с автовыбором "План")</li>
+        <li>Список всех проектов для поля "Родительский проект"</li>
+        <li>Отфильтрованный список проектов для поля "Шаблон Проекта"</li>
+    </ul>
+
+    <div class="code-block">
+        <pre>GET https://integram.io/orbits/apix/_ref_reqs/{statusFieldId}?JSON=1
+GET https://integram.io/orbits/apix/_ref_reqs/{templateFieldId}?JSON=1
+GET https://integram.io/orbits/apix/object/{projectTableId}?JSON_DATA=1</pre>
+    </div>
+
+    <h3>3. Фильтрация шаблонов проектов</h3>
+    <p>Поле "Шаблон Проекта" показывает только те проекты, у которых:</p>
+    <ul>
+        <li>Родительский проект = "Типовой проект"</li>
+    </ul>
+    <p>Фильтрация происходит на стороне клиента путем:</p>
+    <ol>
+        <li>Получения ID проекта "Типовой проект" из справочника родительских проектов</li>
+        <li>Загрузки всех проектов с полной информацией</li>
+        <li>Фильтрации проектов по значению поля "Родительский проект"</li>
+    </ol>
+
+    <h3>4. Создание нового проекта</h3>
+    <p>При отправке формы выполняется POST запрос:</p>
+
+    <div class="code-block">
+        <pre>POST https://integram.io/orbits/apix/_m_new/{projectTableId}?JSON=1
+Content-Type: application/x-www-form-urlencoded
+
+up=1&
+_xsrf={xsrf_token}&
+t{projectTableId}={project_name}&
+t{field1_id}={value1}&
+t{field2_id}={value2}&
+...</pre>
+    </div>
+
+    <div class="note">
+        <strong>Примечание:</strong> ID полей определяются динамически из метаданных, поэтому решение будет работать даже при изменении структуры таблицы.
+    </div>
+
+    <h2>Значения по умолчанию</h2>
+    <ul>
+        <li><strong>Статус проекта:</strong> автоматически выбирается "План" при открытии формы</li>
+        <li><strong>Дата:</strong> автоматически заполняется сегодняшней датой в формате дд.мм.гггг</li>
+    </ul>
+
+    <h2>Валидация</h2>
+    <ul>
+        <li>Поле "Проект" (название) - обязательное</li>
+        <li>Поле "Статус проекта" - обязательное</li>
+        <li>Поле "Дата" - обязательное</li>
+    </ul>
+
+    <h2>Пример использования API</h2>
+
+    <h3>Получение метаданных таблицы Проект</h3>
+    <div class="code-block">
+        <pre>// 1. Найти ID таблицы Проект
+const tables = await fetch('https://integram.io/orbits/apix/dict?JSON=1').then(r => r.json());
+const projectTableId = Object.entries(tables).find(([id, name]) => name === 'Проект')[0];
+
+// 2. Получить метаданные
+const metadata = await fetch(`https://integram.io/orbits/apix/metadata/${projectTableId}?JSON=1`)
+    .then(r => r.json());
+
+// 3. Найти нужные поля
+const statusField = metadata[0].reqs.find(f => f.val.includes('Статус'));
+const templateField = metadata[0].reqs.find(f => f.val.includes('Шаблон'));</pre>
+    </div>
+
+    <h3>Создание нового проекта</h3>
+    <div class="code-block">
+        <pre>const formData = new URLSearchParams();
+formData.append('up', '1');
+formData.append('_xsrf', window.xsrf);
+formData.append(`t${projectTableId}`, 'Новый проект');
+formData.append(`t${statusFieldId}`, planStatusId);
+formData.append(`t${dateFieldId}`, '08.12.2025');
+
+const result = await fetch(
+    `https://integram.io/orbits/apix/_m_new/${projectTableId}?JSON=1`,
+    {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+    }
+).then(r => r.json());
+
+console.log('Created project ID:', result.id);</pre>
+    </div>
+
+    <h2>Логирование</h2>
+    <p>Все операции логируются в консоль браузера с префиксом <code>[Workspace]</code>:</p>
+    <ul>
+        <li>Загрузка метаданных</li>
+        <li>Загрузка справочных данных</li>
+        <li>Фильтрация проектов-шаблонов</li>
+        <li>Создание проекта</li>
+        <li>Ошибки и предупреждения</li>
+    </ul>
+
+    <div class="note">
+        <strong>Для отладки:</strong> Откройте консоль браузера (F12) и следите за сообщениями с префиксом [Workspace].
+    </div>
+
+    <h2>Возможные ошибки и их решение</h2>
+
+    <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+        <thead>
+            <tr style="background-color: #f2f2f2;">
+                <th>Ошибка</th>
+                <th>Причина</th>
+                <th>Решение</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Project table not found</td>
+                <td>Таблица "Проект" не найдена в базе</td>
+                <td>Проверьте название таблицы в системе</td>
+            </tr>
+            <tr>
+                <td>HTTP error! status: 401</td>
+                <td>Отсутствует или неверный токен авторизации</td>
+                <td>Убедитесь, что переменная window.xsrf установлена</td>
+            </tr>
+            <tr>
+                <td>HTTP error! status: 403</td>
+                <td>Недостаточно прав для создания проекта</td>
+                <td>Проверьте права доступа пользователя</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="success">
+        <h3>✅ Готово!</h3>
+        <p>Функционал добавления проекта полностью реализован и готов к использованию.</p>
+        <p>Все требования из issue #50 выполнены:</p>
+        <ul>
+            <li>Кнопка "Добавить проект" на форме</li>
+            <li>Модальная форма со всеми необходимыми полями</li>
+            <li>Получение структуры из API</li>
+            <li>Дефолтные значения (План, сегодняшняя дата)</li>
+            <li>Фильтрация шаблонов по родительскому проекту "Типовой проект"</li>
+        </ul>
+    </div>
+
+</body>
+</html>
