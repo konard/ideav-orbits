@@ -1022,11 +1022,12 @@
     /**
      * Assign executors to scheduled tasks and operations
      * Prioritizes executors based on proximity to grip coordinates
+     * Returns both scheduled items and executor assignments map
      */
-    function assignExecutors(scheduled, executors) {
+    function assignExecutors(scheduled, executors, existingAssignments = null) {
         console.log('  Assigning executors to scheduled items...');
         // Track executor assignments: Map<executorId, [{startTime, endTime, taskName}]>
-        const executorAssignments = new Map();
+        const executorAssignments = existingAssignments || new Map();
 
         let itemNumber = 0;
         for (const item of scheduled) {
@@ -1143,7 +1144,124 @@
             }
         }
 
-        return scheduled;
+        return { scheduled, executorAssignments };
+    }
+
+    /**
+     * Reschedule tasks that don't have enough executors
+     * This applies to tasks with grips (parallel execution) where executors are insufficient
+     */
+    function rescheduleTasks(scheduled, executors, executorAssignments, workHours) {
+        console.log('  Checking for tasks needing rescheduling due to insufficient executors...');
+
+        const tasksNeedingReschedule = [];
+
+        // Identify tasks that need rescheduling
+        for (const item of scheduled) {
+            // Only reschedule tasks with grips (parallel execution) that lack executors
+            if (item.gripId && item.executorsNeeded > 0 && item.executors.length < item.executorsNeeded) {
+                tasksNeedingReschedule.push(item);
+                console.log(`      Task "${item.name}" on grip "${item.gripId}" needs rescheduling: has ${item.executors.length}/${item.executorsNeeded} executors`);
+            }
+        }
+
+        if (tasksNeedingReschedule.length === 0) {
+            console.log('  ✓ No tasks need rescheduling');
+            return { scheduled, executorAssignments };
+        }
+
+        console.log(`  Found ${tasksNeedingReschedule.length} tasks needing rescheduling`);
+
+        // For each task needing rescheduling, find the earliest time when enough executors are available
+        for (const item of tasksNeedingReschedule) {
+            console.log(`  --- Rescheduling "${item.name}" on grip "${item.gripId}" ---`);
+
+            const parameterConstraints = parseParameterString(item.parameters);
+            const executorsNeeded = item.executorsNeeded;
+
+            // Get list of executors that match parameter constraints
+            const eligibleExecutors = [];
+            for (const executor of executors) {
+                if (validateExecutorParameters(executor, parameterConstraints)) {
+                    eligibleExecutors.push(executor);
+                }
+            }
+
+            if (eligibleExecutors.length < executorsNeeded) {
+                console.warn(`      ⚠ Not enough eligible executors match constraints: found ${eligibleExecutors.length}, need ${executorsNeeded}`);
+                continue;
+            }
+
+            // Find earliest time when executorsNeeded executors are available
+            let searchTime = new Date(item.endTime); // Start searching from end of current slot
+            searchTime.setHours(workHours.dayStart, 0, 0, 0); // Move to next day start
+            searchTime.setDate(searchTime.getDate() + 1);
+
+            const maxSearchDays = 30; // Don't search more than 30 days ahead
+            let foundSlot = false;
+
+            for (let day = 0; day < maxSearchDays; day++) {
+                const testStartTime = new Date(searchTime);
+                testStartTime.setDate(testStartTime.getDate() + day);
+                testStartTime.setHours(workHours.dayStart, 0, 0, 0);
+
+                const testEndTime = addWorkingTime(testStartTime, item.duration, workHours);
+
+                // Check how many eligible executors are available during this time slot
+                let availableCount = 0;
+                for (const executor of eligibleExecutors) {
+                    if (isExecutorAvailable(executor, testStartTime, testEndTime, executorAssignments)) {
+                        availableCount++;
+                        if (availableCount >= executorsNeeded) {
+                            break; // Found enough available executors
+                        }
+                    }
+                }
+
+                if (availableCount >= executorsNeeded) {
+                    // Found a suitable time slot
+                    console.log(`      Found available slot: ${formatDateTime(testStartTime)} - ${formatDateTime(testEndTime)}`);
+                    console.log(`      ${availableCount} executors available (need ${executorsNeeded})`);
+
+                    // Clear previous executor assignments for this item
+                    if (item.executors.length > 0) {
+                        for (const assignedExec of item.executors) {
+                            const execId = assignedExec.id;
+                            if (executorAssignments.has(execId)) {
+                                const assignments = executorAssignments.get(execId);
+                                // Remove assignment for this item
+                                const filtered = assignments.filter(a =>
+                                    !(a.startTime.getTime() === item.startTime.getTime() &&
+                                      a.endTime.getTime() === item.endTime.getTime() &&
+                                      a.gripId === item.gripId)
+                                );
+                                executorAssignments.set(execId, filtered);
+                            }
+                        }
+                        item.executors = [];
+                    }
+
+                    // Update item times
+                    item.startTime = testStartTime;
+                    item.endTime = testEndTime;
+
+                    foundSlot = true;
+                    break;
+                }
+            }
+
+            if (!foundSlot) {
+                console.warn(`      ⚠ Could not find available slot within ${maxSearchDays} days`);
+            }
+        }
+
+        // Re-assign executors for rescheduled tasks
+        if (tasksNeedingReschedule.length > 0) {
+            console.log(`  Re-assigning executors for ${tasksNeedingReschedule.length} rescheduled tasks...`);
+            return assignExecutors(tasksNeedingReschedule, executors, executorAssignments);
+        }
+
+        return { scheduled, executorAssignments };
     }
 
     /**
@@ -1512,10 +1630,24 @@
 
             // Assign executors
             console.log('--- Step 10: Assigning executors ---');
-            assignExecutors(scheduled, executorsData);
-            const assignedCount = scheduled.filter(item => item.executors.length > 0).length;
-            const itemsNeedingExecutors = scheduled.filter(item => item.executorsNeeded > 0).length;
+            let assignmentResult = assignExecutors(scheduled, executorsData);
+            let executorAssignments = assignmentResult.executorAssignments;
+            let assignedCount = scheduled.filter(item => item.executors.length > 0).length;
+            let itemsNeedingExecutors = scheduled.filter(item => item.executorsNeeded > 0).length;
             console.log(`✓ Assigned executors to ${assignedCount}/${itemsNeedingExecutors} items needing executors`);
+
+            // Reschedule tasks with insufficient executors
+            console.log('--- Step 10.5: Rescheduling tasks with insufficient executors ---');
+            const rescheduleResult = rescheduleTasks(scheduled, executorsData, executorAssignments, workHours);
+            executorAssignments = rescheduleResult.executorAssignments;
+            assignedCount = scheduled.filter(item => item.executors.length > 0).length;
+            const tasksWithInsufficientExecutors = scheduled.filter(item =>
+                item.executorsNeeded > 0 && item.executors.length < item.executorsNeeded
+            ).length;
+            console.log(`✓ After rescheduling: ${assignedCount}/${itemsNeedingExecutors} items have executors`);
+            if (tasksWithInsufficientExecutors > 0) {
+                console.warn(`  ⚠ ${tasksWithInsufficientExecutors} tasks still have insufficient executors`);
+            }
 
             // Save durations
             console.log('--- Step 11: Saving durations to system ---');
