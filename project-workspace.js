@@ -68,6 +68,88 @@
     }
 
     /**
+     * Build a filter parameter string for integram.io API
+     * Supports special prefixes for advanced filtering:
+     * - @ prefix: filter by ID instead of value (e.g., F_698=@957)
+     * - ! prefix: negate the filter condition (e.g., F_698=!123)
+     * - !@ combined: NOT equal to ID (e.g., F_698=!@957)
+     *
+     * @param {string|number} fieldId - The field ID to filter on
+     * @param {string|number} value - The value to filter by
+     * @param {boolean} byId - If true, add @ prefix to filter by ID instead of value
+     * @param {boolean} negate - If true, add ! prefix to negate the condition
+     * @returns {string} - The filter parameter string (e.g., "F_698=!@957")
+     */
+    function buildFilterParameter(fieldId, value, byId = false, negate = false) {
+        let filterValue = '';
+
+        // Add prefixes in correct order: ! comes before @
+        if (negate) {
+            filterValue += '!';
+        }
+        if (byId) {
+            filterValue += '@';
+        }
+
+        // Add the value
+        filterValue += value;
+
+        return `F_${fieldId}=${filterValue}`;
+    }
+
+    /**
+     * Build a URL with filter parameters
+     * Example: buildUrlWithFilters('/object/663/?JSON_DATA', [
+     *   { fieldId: '698', value: '957', byId: true, negate: true }
+     * ]) returns '/object/663/?JSON_DATA&F_698=!@957'
+     *
+     * @param {string} baseUrl - Base URL (e.g., "/object/663/?JSON_DATA")
+     * @param {Array<{fieldId, value, byId, negate}>} filters - Array of filter specifications
+     * @returns {string} - Complete URL with filters
+     */
+    function buildUrlWithFilters(baseUrl, filters) {
+        if (!filters || filters.length === 0) {
+            return baseUrl;
+        }
+
+        // Check if baseUrl already has query parameters
+        const separator = baseUrl.includes('?') ? '&' : '?';
+
+        // Build filter parameters
+        const filterParams = filters.map(filter =>
+            buildFilterParameter(filter.fieldId, filter.value, filter.byId, filter.negate)
+        ).join('&');
+
+        return `${baseUrl}${separator}${filterParams}`;
+    }
+
+    /**
+     * Fetch projects with parent filter
+     * @param {string} tableId - The project table ID
+     * @param {string} parentFieldId - The parent field ID
+     * @param {string} typicalProjectId - The "Типовой проект" ID
+     * @param {boolean} includeTemplates - If true, get template projects; if false, get non-template projects
+     * @returns {Promise<Array>} - Array of filtered projects
+     */
+    async function fetchProjectsWithParentFilter(tableId, parentFieldId, typicalProjectId, includeTemplates = false) {
+        const baseUrl = `/object/${tableId}?JSON_DATA`;
+        const filters = [
+            {
+                fieldId: parentFieldId,
+                value: typicalProjectId,
+                byId: true,
+                negate: !includeTemplates // negate=false for templates, negate=true for non-templates
+            }
+        ];
+        const projectsUrl = buildApiUrl(buildUrlWithFilters(baseUrl, filters));
+
+        console.log(`[Workspace] Fetching ${includeTemplates ? 'template' : 'non-template'} projects:`, projectsUrl);
+        const projectsData = await fetchJson(projectsUrl);
+
+        return projectsData;
+    }
+
+    /**
      * Fetch Project table metadata
      */
     async function fetchProjectMetadata() {
@@ -361,11 +443,8 @@
             }
 
             // Filter template projects (where parent = "Типовой проект")
+            // Using server-side filtering with F_ parameter (issue #62)
             if (parentField && parentField.ref) {
-                // Get all projects with their parent info
-                const projectsUrl = buildApiUrl(`/object/${templateField.ref}?JSON_DATA=1`);
-                const projectsData = await fetchJson(projectsUrl);
-
                 // Get parent projects list to find "Типовой проект" ID
                 const parentOptions = await fetchReferenceOptions(parentField.id);
                 let typicalProjectId = null;
@@ -378,18 +457,22 @@
 
                 console.log('[Workspace] Типовой проект ID:', typicalProjectId);
 
-                // Filter projects where parent = "Типовой проект"
-                if (typicalProjectId && projectsData) {
-                    const parentFieldIndex = metadata.reqs.findIndex(f => f.id === parentField.id);
+                // Use server-side filtering to get only template projects
+                // F_{parentFieldId}=@{typicalProjectId} means parent == "Типовой проект" (by ID)
+                if (typicalProjectId) {
+                    const projectsData = await fetchProjectsWithParentFilter(
+                        templateField.ref,
+                        parentField.id,
+                        typicalProjectId,
+                        true // includeTemplates = true to get template projects
+                    );
 
+                    // Build templateProjects map from filtered results
                     projectsData.forEach(project => {
-                        const parentValue = project.r[parentFieldIndex];
-                        if (parentValue == typicalProjectId) {
-                            const projectId = project.i;
-                            const projectName = allProjects[projectId];
-                            if (projectName) {
-                                templateProjects[projectId] = projectName;
-                            }
+                        const projectId = project.i;
+                        const projectName = allProjects[projectId];
+                        if (projectName) {
+                            templateProjects[projectId] = projectName;
                         }
                     });
 
