@@ -75,7 +75,7 @@
 
         try {
             // First, get list of tables to find Project table ID
-            const dictUrl = buildApiUrl('/apix/dict?JSON=1');
+            const dictUrl = buildApiUrl('/orbits/dict?JSON=1');
             const tables = await fetchJson(dictUrl);
 
             // Find Project table
@@ -93,7 +93,7 @@
             }
 
             // Get metadata
-            const metadataUrl = buildApiUrl(`/apix/metadata/${projectTableId}?JSON=1`);
+            const metadataUrl = buildApiUrl(`/orbits/metadata/${projectTableId}?JSON=1`);
             const metadata = await fetchJson(metadataUrl);
 
             CONFIG.projectTableId = projectTableId;
@@ -112,7 +112,7 @@
      * Fetch reference field options
      */
     async function fetchReferenceOptions(fieldId) {
-        const url = buildApiUrl(`/apix/_ref_reqs/${fieldId}?JSON=1`);
+        const url = buildApiUrl(`/orbits/_ref_reqs/${fieldId}?JSON=1`);
         return await fetchJson(url);
     }
 
@@ -154,7 +154,7 @@
         console.log('[Workspace] --- Creating new project ---');
         console.log('[Workspace] Project data:', projectData);
 
-        const url = buildApiUrl(`/apix/_m_new/${CONFIG.projectTableId}?JSON=1`);
+        const url = buildApiUrl(`/orbits/_m_new/${CONFIG.projectTableId}?JSON=1`);
         const xsrfToken = window.xsrf || '';
 
         const formData = new URLSearchParams();
@@ -359,7 +359,7 @@
             // Filter template projects (where parent = "Типовой проект")
             if (parentField && parentField.ref) {
                 // Get all projects with their parent info
-                const projectsUrl = buildApiUrl(`/apix/object/${templateField.ref}?JSON_DATA=1`);
+                const projectsUrl = buildApiUrl(`/orbits/object/${templateField.ref}?JSON_DATA=1`);
                 const projectsData = await fetchJson(projectsUrl);
 
                 // Get parent projects list to find "Типовой проект" ID
