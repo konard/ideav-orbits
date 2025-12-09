@@ -426,15 +426,30 @@
             const statusField = metadata.reqs.find(f => f.val.includes('Статус'));
             const templateField = metadata.reqs.find(f => f.val.includes('Шаблон'));
             const parentField = metadata.reqs.find(f => f.val.includes('Родительский'));
+            const clientField = metadata.reqs.find(f => f.val.includes('Заказчик'));
+            const objectField = metadata.reqs.find(f => f.val.includes('Объект'));
 
             // Fetch reference options
             let statusOptions = {};
             let allProjects = {};
             let templateProjects = {};
+            let clientOptions = {};
+            let objectOptions = {};
+            let parentOptions = {};
 
             if (statusField && statusField.ref) {
                 statusOptions = await fetchReferenceOptions(statusField.id);
                 console.log('[Workspace] Status options loaded:', statusOptions);
+            }
+
+            if (clientField && clientField.ref) {
+                clientOptions = await fetchReferenceOptions(clientField.id);
+                console.log('[Workspace] Client options loaded:', clientOptions);
+            }
+
+            if (objectField && objectField.ref) {
+                objectOptions = await fetchReferenceOptions(objectField.id);
+                console.log('[Workspace] Object options loaded:', objectOptions);
             }
 
             if (templateField && templateField.ref) {
@@ -446,7 +461,9 @@
             // Using server-side filtering with F_ parameter (issue #62)
             if (parentField && parentField.ref) {
                 // Get parent projects list to find "Типовой проект" ID
-                const parentOptions = await fetchReferenceOptions(parentField.id);
+                parentOptions = await fetchReferenceOptions(parentField.id);
+                console.log('[Workspace] Parent options loaded:', parentOptions);
+
                 let typicalProjectId = null;
                 for (const [id, name] of Object.entries(parentOptions)) {
                     if (name === 'Типовой проект') {
@@ -515,7 +532,12 @@
 
                                 <div class="form-group">
                                     <label for="projectClient">Заказчик</label>
-                                    <input type="text" id="projectClient" name="client">
+                                    <select id="projectClient" name="client">
+                                        <option value="">-- Не выбрано --</option>
+                                        ${Object.entries(clientOptions).map(([id, name]) =>
+                                            `<option value="${id}">${name}</option>`
+                                        ).join('')}
+                                    </select>
                                 </div>
 
                                 <div class="form-group">
@@ -552,7 +574,7 @@
                                     <label for="projectParent">Родительский проект</label>
                                     <select id="projectParent" name="parentProject">
                                         <option value="">-- Не выбрано --</option>
-                                        ${Object.entries(allProjects).map(([id, name]) =>
+                                        ${Object.entries(parentOptions).map(([id, name]) =>
                                             `<option value="${id}">${name}</option>`
                                         ).join('')}
                                     </select>
@@ -560,7 +582,12 @@
 
                                 <div class="form-group">
                                     <label for="projectObject">Объект</label>
-                                    <input type="text" id="projectObject" name="object">
+                                    <select id="projectObject" name="object">
+                                        <option value="">-- Не выбрано --</option>
+                                        ${Object.entries(objectOptions).map(([id, name]) =>
+                                            `<option value="${id}">${name}</option>`
+                                        ).join('')}
+                                    </select>
                                 </div>
 
                                 <div class="form-group">

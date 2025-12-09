@@ -1,0 +1,11 @@
+[Test] ========================================
+[Test] Issue #66 - Testing dropdown _ref_reqs calls
+[Test] ========================================
+
+[Test] Step 1: Fetching Project table metadata...
+[Test] Fetching: https://integram.io/orbits/dict?JSON=1
+[Test] ✓ Received data
+[Test] ✗ Test failed: Project table not found
+[Test] Stack trace: Error: Project table not found
+    at runTest (/tmp/gh-issue-solver-1765229525977/experiments/test-issue-66-dropdown-calls.js:70:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
