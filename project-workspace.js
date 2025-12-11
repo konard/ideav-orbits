@@ -271,8 +271,6 @@
                 value = projectData.deadline;
             } else if (fieldName.includes('Бюджет') && projectData.budget) {
                 value = projectData.budget;
-            } else if (fieldName.includes('Родительский') && projectData.parentProject) {
-                value = projectData.parentProject;
             } else if (fieldName.includes('Объект') && projectData.object) {
                 value = projectData.object;
             } else if (fieldName.includes('Шаблон') && projectData.template) {
@@ -425,7 +423,6 @@
             // Find field IDs
             const statusField = metadata.reqs.find(f => f.val.includes('Статус'));
             const templateField = metadata.reqs.find(f => f.val.includes('Шаблон'));
-            const parentField = metadata.reqs.find(f => f.val.includes('Родительский'));
             const clientField = metadata.reqs.find(f => f.val.includes('Заказчик'));
             const objectField = metadata.reqs.find(f => f.val.includes('Объект'));
 
@@ -435,7 +432,6 @@
             let templateProjects = {};
             let clientOptions = {};
             let objectOptions = {};
-            let parentOptions = {};
 
             if (statusField && statusField.ref) {
                 statusOptions = await fetchReferenceOptions(statusField.id);
@@ -453,48 +449,8 @@
             }
 
             if (templateField && templateField.ref) {
-                allProjects = await fetchReferenceOptions(templateField.id);
-                console.log('[Workspace] All projects loaded for template field');
-            }
-
-            // Filter template projects (where parent = "Типовой проект")
-            // Using server-side filtering with F_ parameter (issue #62)
-            if (parentField && parentField.ref) {
-                // Get parent projects list to find "Типовой проект" ID
-                parentOptions = await fetchReferenceOptions(parentField.id);
-                console.log('[Workspace] Parent options loaded:', parentOptions);
-
-                let typicalProjectId = null;
-                for (const [id, name] of Object.entries(parentOptions)) {
-                    if (name === 'Типовой проект') {
-                        typicalProjectId = id;
-                        break;
-                    }
-                }
-
-                console.log('[Workspace] Типовой проект ID:', typicalProjectId);
-
-                // Use server-side filtering to get only template projects
-                // F_{parentFieldId}=@{typicalProjectId} means parent == "Типовой проект" (by ID)
-                if (typicalProjectId) {
-                    const projectsData = await fetchProjectsWithParentFilter(
-                        templateField.ref,
-                        parentField.id,
-                        typicalProjectId,
-                        true // includeTemplates = true to get template projects
-                    );
-
-                    // Build templateProjects map from filtered results
-                    projectsData.forEach(project => {
-                        const projectId = project.i;
-                        const projectName = allProjects[projectId];
-                        if (projectName) {
-                            templateProjects[projectId] = projectName;
-                        }
-                    });
-
-                    console.log('[Workspace] Filtered template projects:', templateProjects);
-                }
+                templateProjects = await fetchReferenceOptions(templateField.id);
+                console.log('[Workspace] Template projects loaded:', templateProjects);
             }
 
             // Get today's date in dd.mm.yyyy format
@@ -571,16 +527,6 @@
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="projectParent">Родительский проект</label>
-                                    <select id="projectParent" name="parentProject">
-                                        <option value="">-- Не выбрано --</option>
-                                        ${Object.entries(parentOptions).map(([id, name]) =>
-                                            `<option value="${id}">${name}</option>`
-                                        ).join('')}
-                                    </select>
-                                </div>
-
-                                <div class="form-group">
                                     <label for="projectObject">Объект</label>
                                     <select id="projectObject" name="object">
                                         <option value="">-- Не выбрано --</option>
@@ -598,7 +544,6 @@
                                             `<option value="${id}">${name}</option>`
                                         ).join('')}
                                     </select>
-                                    <small>Только проекты с родителем "Типовой проект"</small>
                                 </div>
 
                                 <div class="form-actions">
