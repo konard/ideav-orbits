@@ -92,15 +92,6 @@
                 console.log('Status options:', statusOptions);
             }
 
-            // Find Parent Project field (Родительский проект)
-            const parentField = projectMetadata.reqs.find(f => f.val.includes('Родительский'));
-            if (parentField && parentField.ref) {
-                console.log(`\nFetching options for "${parentField.val}" field...`);
-                const refUrl = buildApiUrl(`/apix/_ref_reqs/${parentField.id}?JSON=1`);
-                const parentOptions = await fetchJson(refUrl);
-                console.log('Parent project options:', parentOptions);
-            }
-
             // Find Project Template field (Шаблон Проекта)
             const templateField = projectMetadata.reqs.find(f => f.val.includes('Шаблон'));
             if (templateField && templateField.ref) {
