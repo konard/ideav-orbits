@@ -1,0 +1,378 @@
+<!-- File: projects -->
+<style>
+    .project-list-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .search-box {
+        margin-bottom: 20px;
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        width: 100%;
+        font-size: 14px;
+    }
+
+    .project-list {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 30px;
+    }
+
+    .project-item {
+        padding: 15px;
+        border-bottom: 1px solid #dee2e6;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .project-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .project-item.active {
+        background-color: #e7f3ff;
+        border-left: 3px solid #007bff;
+    }
+
+    .project-item:last-child {
+        border-bottom: none;
+    }
+
+    .project-header {
+        font-weight: bold;
+        font-size: 16px;
+        margin-bottom: 5px;
+    }
+
+    .project-meta {
+        font-size: 13px;
+        color: #6c757d;
+    }
+
+    .btn-add-project {
+        margin-bottom: 20px;
+    }
+
+    .task-section {
+        margin-top: 30px;
+        display: none;
+    }
+
+    .task-section.active {
+        display: block;
+    }
+
+    .task-list, .operation-list {
+        margin-top: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+
+    .task-item, .operation-item {
+        padding: 12px;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: #fff;
+    }
+
+    .task-item:hover, .operation-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .task-item.dragging, .operation-item.dragging {
+        opacity: 0.5;
+    }
+
+    .task-order, .operation-order {
+        font-weight: bold;
+        margin-right: 10px;
+        min-width: 30px;
+        text-align: center;
+    }
+
+    .task-content, .operation-content {
+        flex-grow: 1;
+    }
+
+    .task-actions, .operation-actions {
+        display: flex;
+        gap: 5px;
+    }
+
+    .operation-item {
+        margin-left: 30px;
+    }
+
+    .modal-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1040;
+    }
+
+    .modal-backdrop.show {
+        display: block;
+    }
+
+    .modal-dialog-custom {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        z-index: 1050;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+
+    .form-control-custom {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    textarea.form-control-custom {
+        min-height: 80px;
+        resize: vertical;
+    }
+
+    .btn-group-custom {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 20px;
+    }
+
+    .section-title {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #007bff;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    .drag-handle {
+        cursor: move;
+        margin-right: 10px;
+        color: #6c757d;
+    }
+</style>
+
+<div class="project-list-container">
+    <div class="section-title">Управление проектами</div>
+
+    <button class="btn btn-primary btn-add-project" onclick="showAddProjectModal()">
+        + Добавить проект
+    </button>
+
+    <input type="text" class="search-box" id="projectSearch" placeholder="Поиск по любому полю..." onkeyup="filterProjects()">
+
+    <div class="project-list" id="projectList">
+        <!-- Projects will be loaded here -->
+    </div>
+
+    <div class="task-section" id="taskSection">
+        <div class="section-title">
+            <span id="selectedProjectName"></span>
+            <button class="btn btn-sm btn-secondary float-right" onclick="editProject()">Редактировать проект</button>
+        </div>
+
+        <button class="btn btn-primary btn-sm" onclick="showAddTaskModal()">
+            + Добавить задачу
+        </button>
+
+        <div class="task-list" id="taskList">
+            <!-- Tasks and operations will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- Project Modal -->
+<div class="modal-backdrop" id="projectModalBackdrop" onclick="closeProjectModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5 id="projectModalTitle">Добавить проект</h5>
+        <form id="projectForm">
+            <input type="hidden" id="projectId">
+
+            <div class="form-group">
+                <label for="projectName">Проект *</label>
+                <input type="text" class="form-control-custom" id="projectName" required>
+            </div>
+
+            <div class="form-group">
+                <label for="projectDescription">Описание</label>
+                <textarea class="form-control-custom" id="projectDescription"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="projectClient">Заказчик</label>
+                <select class="form-control-custom" id="projectClient">
+                    <option value="">Выберите заказчика</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="projectStatus">Статус проекта</label>
+                <select class="form-control-custom" id="projectStatus">
+                    <option value="">Выберите статус</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="projectObject">Объект</label>
+                <select class="form-control-custom" id="projectObject">
+                    <option value="">Выберите объект</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="projectStart">Старт</label>
+                <input type="date" class="form-control-custom" id="projectStart">
+            </div>
+
+            <div class="form-group">
+                <label for="projectDeadline">Срок</label>
+                <input type="date" class="form-control-custom" id="projectDeadline">
+            </div>
+
+            <div class="form-group">
+                <label for="projectBudget">Бюджет</label>
+                <input type="number" class="form-control-custom" id="projectBudget" step="0.01">
+            </div>
+
+            <div class="btn-group-custom">
+                <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Task Modal -->
+<div class="modal-backdrop" id="taskModalBackdrop" onclick="closeTaskModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5 id="taskModalTitle">Добавить задачу</h5>
+        <form id="taskForm">
+            <input type="hidden" id="taskId">
+            <input type="hidden" id="taskProjectId">
+
+            <div class="form-group">
+                <label for="taskName">Задача проекта *</label>
+                <input type="text" class="form-control-custom" id="taskName" required>
+            </div>
+
+            <div class="form-group">
+                <label for="taskDescription">Описание</label>
+                <textarea class="form-control-custom" id="taskDescription"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="taskStatus">Статус задачи</label>
+                <select class="form-control-custom" id="taskStatus">
+                    <option value="">Выберите статус</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="taskQuantity">Количество</label>
+                <input type="number" class="form-control-custom" id="taskQuantity" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="taskUnit">Ед.изм.</label>
+                <select class="form-control-custom" id="taskUnit">
+                    <option value="">Выберите ед.изм.</option>
+                </select>
+            </div>
+
+            <div class="btn-group-custom">
+                <button type="button" class="btn btn-secondary" onclick="closeTaskModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Operation Modal -->
+<div class="modal-backdrop" id="operationModalBackdrop" onclick="closeOperationModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5 id="operationModalTitle">Добавить операцию</h5>
+        <form id="operationForm">
+            <input type="hidden" id="operationId">
+            <input type="hidden" id="operationTaskId">
+
+            <div class="form-group">
+                <label for="operationTemplate">Операция (шаблон)</label>
+                <select class="form-control-custom" id="operationTemplate">
+                    <option value="">Выберите операцию</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="operationNorm">Норматив</label>
+                <input type="number" class="form-control-custom" id="operationNorm" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label for="operationQuantity">Кол-во</label>
+                <input type="text" class="form-control-custom" id="operationQuantity">
+            </div>
+
+            <div class="form-group">
+                <label for="operationUnit">Ед.изм.</label>
+                <select class="form-control-custom" id="operationUnit">
+                    <option value="">Выберите ед.изм.</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="operationStart">Начать</label>
+                <input type="datetime-local" class="form-control-custom" id="operationStart">
+            </div>
+
+            <div class="btn-group-custom">
+                <button type="button" class="btn btn-secondary" onclick="closeOperationModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://{host}/download/{db}/js/projects.js"></script>
+<script>
+    // Initialize on page load
+    if (typeof initProjectsWorkspace === 'function') {
+        initProjectsWorkspace();
+    }
+</script>
