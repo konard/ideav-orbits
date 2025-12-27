@@ -1068,12 +1068,12 @@ document.getElementById('operationForm').addEventListener('submit', function(e) 
     const templateId = document.getElementById('operationTemplate').value;
     formData.append('t702', templateId); // Операция (шаблон)
 
-    // Find the selected template and add its name as t2628
+    // Find the selected template and add its name as t695
     const selectedTemplate = dictionaries.operationTemplates.find(t =>
         t['Операция (шаблон)ID'] === templateId
     );
     if (selectedTemplate && selectedTemplate['Операция (шаблон)']) {
-        formData.append('t2628', selectedTemplate['Операция (шаблон)']); // Имя операции из шаблона
+        formData.append('t695', selectedTemplate['Операция (шаблон)']); // Имя операции из шаблона
     }
 
     formData.append('t704', document.getElementById('operationNorm').value); // Норматив
