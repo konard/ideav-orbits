@@ -341,6 +341,11 @@ function handleDragStart(e) {
     draggedElement = this;
     this.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
+
+    // Console tracing for drag start
+    const isTask = this.classList.contains('task-item');
+    const id = isTask ? this.dataset.taskId : this.dataset.operationId;
+    console.log(`[DRAG] Start: ${isTask ? 'Task' : 'Operation'} ID=${id}, Order=${this.dataset.order}`);
 }
 
 function handleDragOver(e) {
@@ -348,6 +353,15 @@ function handleDragOver(e) {
         e.preventDefault();
     }
     e.dataTransfer.dropEffect = 'move';
+
+    // Console tracing for drag over (throttled to avoid spam)
+    if (!this._lastDragOverLog || Date.now() - this._lastDragOverLog > 500) {
+        const isTask = this.classList.contains('task-item');
+        const id = isTask ? this.dataset.taskId : this.dataset.operationId;
+        console.log(`[DRAG] Over: ${isTask ? 'Task' : 'Operation'} ID=${id}`);
+        this._lastDragOverLog = Date.now();
+    }
+
     return false;
 }
 
@@ -356,20 +370,39 @@ function handleDrop(e) {
         e.stopPropagation();
     }
 
+    console.log('[DRAG] Drop event triggered');
+
     if (draggedElement !== this && draggedElement.className === this.className) {
+        const isDraggedTask = draggedElement.classList.contains('task-item');
+        const isDropTargetTask = this.classList.contains('task-item');
+        const draggedId = isDraggedTask ? draggedElement.dataset.taskId : draggedElement.dataset.operationId;
+        const dropTargetId = isDropTargetTask ? this.dataset.taskId : this.dataset.operationId;
+
+        console.log(`[DRAG] Valid drop: Moving ${isDraggedTask ? 'Task' : 'Operation'} ID=${draggedId} near ${isDropTargetTask ? 'Task' : 'Operation'} ID=${dropTargetId}`);
+
         // Get the bounding rectangle of the drop target
         const rect = this.getBoundingClientRect();
         const midpoint = rect.top + rect.height / 2;
 
         // Insert before or after based on mouse position
-        if (e.clientY < midpoint) {
+        const insertBefore = e.clientY < midpoint;
+        console.log(`[DRAG] Insert position: ${insertBefore ? 'before' : 'after'} drop target`);
+
+        if (insertBefore) {
             this.parentNode.insertBefore(draggedElement, this);
         } else {
             this.parentNode.insertBefore(draggedElement, this.nextSibling);
         }
 
+        console.log('[DRAG] Element moved in DOM, calling saveOrder()');
         // Save new order
         saveOrder(draggedElement);
+    } else {
+        if (draggedElement === this) {
+            console.log('[DRAG] Drop ignored: Element dropped on itself');
+        } else if (draggedElement.className !== this.className) {
+            console.log('[DRAG] Drop ignored: Different element types (task vs operation)');
+        }
     }
 
     return false;
@@ -377,18 +410,34 @@ function handleDrop(e) {
 
 function handleDragEnd(e) {
     this.classList.remove('dragging');
+
+    // Console tracing for drag end
+    const isTask = this.classList.contains('task-item');
+    const id = isTask ? this.dataset.taskId : this.dataset.operationId;
+    console.log(`[DRAG] End: ${isTask ? 'Task' : 'Operation'} ID=${id}`);
 }
 
 /**
  * Save new order after drag and drop
  */
 function saveOrder(element) {
+    console.log('[SAVE_ORDER] Function called');
+
     const isTask = element.classList.contains('task-item');
+    const elementId = isTask ? element.dataset.taskId : element.dataset.operationId;
+    console.log(`[SAVE_ORDER] Element type: ${isTask ? 'Task' : 'Operation'}, ID: ${elementId}`);
 
     // Get all siblings of the same type
     const siblings = Array.from(element.parentNode.children).filter(el =>
         el.classList.contains(isTask ? 'task-item' : 'operation-item')
     );
+
+    console.log(`[SAVE_ORDER] Found ${siblings.length} siblings of the same type`);
+    siblings.forEach((sibling, index) => {
+        const id = isTask ? sibling.dataset.taskId : sibling.dataset.operationId;
+        const currentOrder = sibling.dataset.order;
+        console.log(`[SAVE_ORDER] Sibling ${index + 1}: ID=${id}, Current Order=${currentOrder}, New Order=${index + 1}`);
+    });
 
     // Update order for ALL siblings, not just the dragged element
     const updatePromises = siblings.map((sibling, index) => {
@@ -402,35 +451,45 @@ function saveOrder(element) {
         const formData = new FormData();
         formData.append('_xsrf', xsrf);
 
-        return fetch(`https://${window.location.host}/${db}/_m_ord/${id}?JSON&order=${newOrder}`, {
+        const url = `https://${window.location.host}/${db}/_m_ord/${id}?JSON&order=${newOrder}`;
+        console.log(`[SAVE_ORDER] Sending API request for ${isTask ? 'task' : 'operation'} ${id}: ${url}`);
+
+        return fetch(url, {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log(`[SAVE_ORDER] API response for ${isTask ? 'task' : 'operation'} ${id}: Status ${response.status}`);
+            return response.json();
+        })
         .then(data => {
-            console.log(`Order updated for ${isTask ? 'task' : 'operation'} ${id}: ${newOrder}`, data);
+            console.log(`[SAVE_ORDER] Order updated for ${isTask ? 'task' : 'operation'} ${id}: ${newOrder}`, data);
             return data;
         })
         .catch(error => {
-            console.error(`Error updating order for ${isTask ? 'task' : 'operation'} ${id}:`, error);
+            console.error(`[SAVE_ORDER] Error updating order for ${isTask ? 'task' : 'operation'} ${id}:`, error);
             throw error;
         });
     });
 
+    console.log(`[SAVE_ORDER] Created ${updatePromises.length} update promises`);
+
     // Wait for all updates to complete, then reload
     Promise.all(updatePromises)
         .then(() => {
-            console.log('All order updates completed successfully');
+            console.log('[SAVE_ORDER] All order updates completed successfully');
             // Reload to show updated order from server
             if (selectedProject) {
+                console.log(`[SAVE_ORDER] Reloading project details for project ${selectedProject['ПроектID']}`);
                 loadProjectDetails(selectedProject['ПроектID']);
             }
         })
         .catch(error => {
-            console.error('Error updating orders:', error);
+            console.error('[SAVE_ORDER] Error updating orders:', error);
             alert('Ошибка сохранения порядка');
             // Reload anyway to restore correct state
             if (selectedProject) {
+                console.log(`[SAVE_ORDER] Reloading project details after error for project ${selectedProject['ПроектID']}`);
                 loadProjectDetails(selectedProject['ПроектID']);
             }
         });
