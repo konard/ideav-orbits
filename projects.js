@@ -533,7 +533,7 @@ function displayTasksAndOperations(data) {
                 const opIsSelected = selectedItemsForDeletion.has(`operation-${op['ОперацияID']}`) ? 'selected' : '';
 
                 html += `
-                    <div class="operation-item ${opIsSelected}" draggable="${!deleteModeActive}" data-operation-id="${op['ОперацияID']}" data-order="${op['ОперацияOrder']}">
+                    <div class="operation-item ${opIsSelected}" draggable="${!deleteModeActive}" data-operation-id="${op['ОперацияID']}" data-task-id="${taskId}" data-order="${op['ОперацияOrder']}">
                         ${opDeleteCheckbox}
                         <span class="drag-handle" style="display: ${deleteModeActive ? 'none' : 'inline'}">☰</span>
                         <span class="operation-order">${opIndex + 1}</span>
@@ -688,9 +688,20 @@ function saveOrder(element) {
     console.log(`[SAVE_ORDER] Element type: ${isTask ? 'Task' : 'Operation'}, ID: ${elementId}`);
 
     // Get all siblings of the same type to calculate the new order position
-    const siblings = Array.from(element.parentNode.children).filter(el =>
-        el.classList.contains(isTask ? 'task-item' : 'operation-item')
-    );
+    let siblings;
+    if (isTask) {
+        // For tasks, get all task items
+        siblings = Array.from(element.parentNode.children).filter(el =>
+            el.classList.contains('task-item')
+        );
+    } else {
+        // For operations, only get operations within the same task
+        const parentTaskId = element.dataset.taskId;
+        console.log(`[SAVE_ORDER] Operation belongs to task: ${parentTaskId}`);
+        siblings = Array.from(element.parentNode.children).filter(el =>
+            el.classList.contains('operation-item') && el.dataset.taskId === parentTaskId
+        );
+    }
 
     console.log(`[SAVE_ORDER] Found ${siblings.length} siblings of the same type`);
 
