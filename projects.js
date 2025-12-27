@@ -372,9 +372,14 @@ function handleDrop(e) {
 
     console.log('[DRAG] Drop event triggered');
 
-    if (draggedElement !== this && draggedElement.className === this.className) {
-        const isDraggedTask = draggedElement.classList.contains('task-item');
-        const isDropTargetTask = this.classList.contains('task-item');
+    // Check if both elements are of the same type (both tasks or both operations)
+    const isDraggedTask = draggedElement.classList.contains('task-item');
+    const isDraggedOperation = draggedElement.classList.contains('operation-item');
+    const isDropTargetTask = this.classList.contains('task-item');
+    const isDropTargetOperation = this.classList.contains('operation-item');
+    const isSameType = (isDraggedTask && isDropTargetTask) || (isDraggedOperation && isDropTargetOperation);
+
+    if (draggedElement !== this && isSameType) {
         const draggedId = isDraggedTask ? draggedElement.dataset.taskId : draggedElement.dataset.operationId;
         const dropTargetId = isDropTargetTask ? this.dataset.taskId : this.dataset.operationId;
 
@@ -400,7 +405,7 @@ function handleDrop(e) {
     } else {
         if (draggedElement === this) {
             console.log('[DRAG] Drop ignored: Element dropped on itself');
-        } else if (draggedElement.className !== this.className) {
+        } else if (!isSameType) {
             console.log('[DRAG] Drop ignored: Different element types (task vs operation)');
         }
     }
