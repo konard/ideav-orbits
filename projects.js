@@ -424,6 +424,8 @@ function handleDragEnd(e) {
 
 /**
  * Save new order after drag and drop
+ * Only saves the dragged element's new order position.
+ * The backend will recalculate the order for all other elements.
  */
 function saveOrder(element) {
     console.log('[SAVE_ORDER] Function called');
@@ -432,72 +434,52 @@ function saveOrder(element) {
     const elementId = isTask ? element.dataset.taskId : element.dataset.operationId;
     console.log(`[SAVE_ORDER] Element type: ${isTask ? 'Task' : 'Operation'}, ID: ${elementId}`);
 
-    // Get all siblings of the same type
+    // Get all siblings of the same type to calculate the new order position
     const siblings = Array.from(element.parentNode.children).filter(el =>
         el.classList.contains(isTask ? 'task-item' : 'operation-item')
     );
 
     console.log(`[SAVE_ORDER] Found ${siblings.length} siblings of the same type`);
-    siblings.forEach((sibling, index) => {
-        const id = isTask ? sibling.dataset.taskId : sibling.dataset.operationId;
-        const currentOrder = sibling.dataset.order;
-        console.log(`[SAVE_ORDER] Sibling ${index + 1}: ID=${id}, Current Order=${currentOrder}, New Order=${index + 1}`);
+
+    // Calculate the new order for the dragged element only
+    const newOrder = siblings.indexOf(element) + 1;
+    console.log(`[SAVE_ORDER] Dragged element new order: ${newOrder}`);
+
+    // Update the data-order attribute immediately for UI consistency
+    element.dataset.order = newOrder;
+
+    // Send update to server only for the dragged element
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+
+    const url = `https://${window.location.host}/${db}/_m_ord/${elementId}?JSON&order=${newOrder}`;
+    console.log(`[SAVE_ORDER] Sending API request for ${isTask ? 'task' : 'operation'} ${elementId}: ${url}`);
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        console.log(`[SAVE_ORDER] API response for ${isTask ? 'task' : 'operation'} ${elementId}: Status ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        console.log(`[SAVE_ORDER] Order updated for ${isTask ? 'task' : 'operation'} ${elementId}: ${newOrder}`, data);
+        // Reload to show updated order from server (backend recalculates all orders)
+        if (selectedProject) {
+            console.log(`[SAVE_ORDER] Reloading project details for project ${selectedProject['ПроектID']}`);
+            loadProjectDetails(selectedProject['ПроектID']);
+        }
+    })
+    .catch(error => {
+        console.error(`[SAVE_ORDER] Error updating order for ${isTask ? 'task' : 'operation'} ${elementId}:`, error);
+        alert('Ошибка сохранения порядка');
+        // Reload anyway to restore correct state
+        if (selectedProject) {
+            console.log(`[SAVE_ORDER] Reloading project details after error for project ${selectedProject['ПроектID']}`);
+            loadProjectDetails(selectedProject['ПроектID']);
+        }
     });
-
-    // Update order for ALL siblings, not just the dragged element
-    const updatePromises = siblings.map((sibling, index) => {
-        const id = isTask ? sibling.dataset.taskId : sibling.dataset.operationId;
-        const newOrder = index + 1;
-
-        // Update the data-order attribute immediately for UI consistency
-        sibling.dataset.order = newOrder;
-
-        // Send update to server
-        const formData = new FormData();
-        formData.append('_xsrf', xsrf);
-
-        const url = `https://${window.location.host}/${db}/_m_ord/${id}?JSON&order=${newOrder}`;
-        console.log(`[SAVE_ORDER] Sending API request for ${isTask ? 'task' : 'operation'} ${id}: ${url}`);
-
-        return fetch(url, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            console.log(`[SAVE_ORDER] API response for ${isTask ? 'task' : 'operation'} ${id}: Status ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            console.log(`[SAVE_ORDER] Order updated for ${isTask ? 'task' : 'operation'} ${id}: ${newOrder}`, data);
-            return data;
-        })
-        .catch(error => {
-            console.error(`[SAVE_ORDER] Error updating order for ${isTask ? 'task' : 'operation'} ${id}:`, error);
-            throw error;
-        });
-    });
-
-    console.log(`[SAVE_ORDER] Created ${updatePromises.length} update promises`);
-
-    // Wait for all updates to complete, then reload
-    Promise.all(updatePromises)
-        .then(() => {
-            console.log('[SAVE_ORDER] All order updates completed successfully');
-            // Reload to show updated order from server
-            if (selectedProject) {
-                console.log(`[SAVE_ORDER] Reloading project details for project ${selectedProject['ПроектID']}`);
-                loadProjectDetails(selectedProject['ПроектID']);
-            }
-        })
-        .catch(error => {
-            console.error('[SAVE_ORDER] Error updating orders:', error);
-            alert('Ошибка сохранения порядка');
-            // Reload anyway to restore correct state
-            if (selectedProject) {
-                console.log(`[SAVE_ORDER] Reloading project details after error for project ${selectedProject['ПроектID']}`);
-                loadProjectDetails(selectedProject['ПроектID']);
-            }
-        });
 }
 
 /**
