@@ -384,34 +384,56 @@ function handleDragEnd(e) {
  */
 function saveOrder(element) {
     const isTask = element.classList.contains('task-item');
-    const id = isTask ? element.dataset.taskId : element.dataset.operationId;
 
-    // Calculate new order based on position
+    // Get all siblings of the same type
     const siblings = Array.from(element.parentNode.children).filter(el =>
         el.classList.contains(isTask ? 'task-item' : 'operation-item')
     );
-    const newOrder = siblings.indexOf(element) + 1;
 
-    // Send update to server
-    const formData = new FormData();
-    formData.append('_xsrf', xsrf);
+    // Update order for ALL siblings, not just the dragged element
+    const updatePromises = siblings.map((sibling, index) => {
+        const id = isTask ? sibling.dataset.taskId : sibling.dataset.operationId;
+        const newOrder = index + 1;
 
-    fetch(`https://${window.location.host}/${db}/_m_ord/${id}?JSON&order=${newOrder}`, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Order updated:', data);
-        // Reload to show updated order
-        if (selectedProject) {
-            loadProjectDetails(selectedProject['ПроектID']);
-        }
-    })
-    .catch(error => {
-        console.error('Error updating order:', error);
-        alert('Ошибка сохранения порядка');
+        // Update the data-order attribute immediately for UI consistency
+        sibling.dataset.order = newOrder;
+
+        // Send update to server
+        const formData = new FormData();
+        formData.append('_xsrf', xsrf);
+
+        return fetch(`https://${window.location.host}/${db}/_m_ord/${id}?JSON&order=${newOrder}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(`Order updated for ${isTask ? 'task' : 'operation'} ${id}: ${newOrder}`, data);
+            return data;
+        })
+        .catch(error => {
+            console.error(`Error updating order for ${isTask ? 'task' : 'operation'} ${id}:`, error);
+            throw error;
+        });
     });
+
+    // Wait for all updates to complete, then reload
+    Promise.all(updatePromises)
+        .then(() => {
+            console.log('All order updates completed successfully');
+            // Reload to show updated order from server
+            if (selectedProject) {
+                loadProjectDetails(selectedProject['ПроектID']);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating orders:', error);
+            alert('Ошибка сохранения порядка');
+            // Reload anyway to restore correct state
+            if (selectedProject) {
+                loadProjectDetails(selectedProject['ПроектID']);
+            }
+        });
 }
 
 /**
