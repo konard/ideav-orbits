@@ -189,6 +189,23 @@
         margin-right: 10px;
         color: #6c757d;
     }
+
+    .delete-checkbox {
+        margin-right: 10px;
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .delete-mode .task-item,
+    .delete-mode .operation-item {
+        background-color: #fff3cd;
+    }
+
+    .delete-mode .task-item.selected,
+    .delete-mode .operation-item.selected {
+        background-color: #f8d7da;
+    }
 </style>
 
 <div class="project-list-container">
@@ -208,6 +225,9 @@
         <div class="section-title">
             <span id="selectedProjectName"></span>
             <button class="btn btn-sm btn-secondary float-right" onclick="editProject()">Редактировать проект</button>
+            <button class="btn btn-sm btn-primary float-right" style="margin-right: 5px;" onclick="cloneProject()">Клонировать</button>
+            <button class="btn btn-sm btn-warning float-right" style="margin-right: 5px;" id="toggleDeleteModeBtn" onclick="toggleDeleteMode()">Групповое удаление</button>
+            <button class="btn btn-sm btn-danger float-right hidden" style="margin-right: 5px;" id="deleteSelectedBtn" onclick="deleteSelected()">Удалить выбранные</button>
         </div>
 
         <button class="btn btn-primary btn-sm" onclick="showAddTaskModal()">
@@ -323,6 +343,37 @@
                 <button type="submit" class="btn btn-primary">Сохранить</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Clone Project Modal -->
+<div class="modal-backdrop" id="cloneModalBackdrop" onclick="closeCloneModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5>Клонировать проект</h5>
+        <form id="cloneForm">
+            <div class="form-group">
+                <label for="cloneProjectName">Новое имя проекта *</label>
+                <input type="text" class="form-control-custom" id="cloneProjectName" required>
+            </div>
+
+            <div class="btn-group-custom">
+                <button type="button" class="btn btn-secondary" onclick="closeCloneModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Клонировать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-backdrop" id="deleteModalBackdrop" onclick="closeDeleteModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5>Подтверждение удаления</h5>
+        <p id="deleteConfirmText">Вы уверены, что хотите удалить выбранные элементы?</p>
+
+        <div class="btn-group-custom">
+            <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Отмена</button>
+            <button type="button" class="btn btn-danger" onclick="confirmDelete()">Удалить</button>
+        </div>
     </div>
 </div>
 

@@ -17,6 +17,8 @@ let dictionaries = {
     directions: [],
     workTypes: []
 };
+let deleteModeActive = false;
+let selectedItemsForDeletion = new Set();
 
 /**
  * Initialize the projects workspace
@@ -446,9 +448,13 @@ function displayTasksAndOperations(data) {
             return orderA - orderB;
         });
 
+        const deleteCheckbox = deleteModeActive ? `<input type="checkbox" class="delete-checkbox" data-type="task" data-id="${taskId}" onchange="toggleItemSelection(this)">` : '';
+        const isSelected = selectedItemsForDeletion.has(`task-${taskId}`) ? 'selected' : '';
+
         let html = `
-            <div class="task-item" draggable="true" data-task-id="${taskId}" data-order="${task['Задача проектаOrder']}">
-                <span class="drag-handle">☰</span>
+            <div class="task-item ${isSelected}" draggable="${!deleteModeActive}" data-task-id="${taskId}" data-order="${task['Задача проектаOrder']}">
+                ${deleteCheckbox}
+                <span class="drag-handle" style="display: ${deleteModeActive ? 'none' : 'inline'}">☰</span>
                 <span class="task-order">${index + 1}</span>
                 <div class="task-content">
                     <strong>${escapeHtml(task['Задача проекта'] || 'Без названия')}</strong>
@@ -465,9 +471,13 @@ function displayTasksAndOperations(data) {
         // Add operations
         operations.forEach((op, opIndex) => {
             if (op['ОперацияID']) {
+                const opDeleteCheckbox = deleteModeActive ? `<input type="checkbox" class="delete-checkbox" data-type="operation" data-id="${op['ОперацияID']}" onchange="toggleItemSelection(this)">` : '';
+                const opIsSelected = selectedItemsForDeletion.has(`operation-${op['ОперацияID']}`) ? 'selected' : '';
+
                 html += `
-                    <div class="operation-item" draggable="true" data-operation-id="${op['ОперацияID']}" data-order="${op['ОперацияOrder']}">
-                        <span class="drag-handle">☰</span>
+                    <div class="operation-item ${opIsSelected}" draggable="${!deleteModeActive}" data-operation-id="${op['ОперацияID']}" data-order="${op['ОперацияOrder']}">
+                        ${opDeleteCheckbox}
+                        <span class="drag-handle" style="display: ${deleteModeActive ? 'none' : 'inline'}">☰</span>
                         <span class="operation-order">${opIndex + 1}</span>
                         <div class="operation-content">
                             ${escapeHtml(op['Операция'] || 'Без названия')}
@@ -485,8 +495,17 @@ function displayTasksAndOperations(data) {
         return html;
     }).join('');
 
-    // Add drag and drop handlers
-    addDragAndDropHandlers();
+    // Update delete mode class on task list container
+    if (deleteModeActive) {
+        taskList.classList.add('delete-mode');
+    } else {
+        taskList.classList.remove('delete-mode');
+    }
+
+    // Add drag and drop handlers (only if not in delete mode)
+    if (!deleteModeActive) {
+        addDragAndDropHandlers();
+    }
 }
 
 /**
@@ -1031,3 +1050,208 @@ function formatDateTimeForInput(dateTimeStr) {
     }
     return '';
 }
+
+/**
+ * Toggle bulk delete mode
+ */
+function toggleDeleteMode() {
+    deleteModeActive = !deleteModeActive;
+    selectedItemsForDeletion.clear();
+
+    const toggleBtn = document.getElementById('toggleDeleteModeBtn');
+    const deleteBtn = document.getElementById('deleteSelectedBtn');
+
+    if (deleteModeActive) {
+        toggleBtn.textContent = 'Отменить режим удаления';
+        toggleBtn.classList.remove('btn-warning');
+        toggleBtn.classList.add('btn-secondary');
+    } else {
+        toggleBtn.textContent = 'Групповое удаление';
+        toggleBtn.classList.remove('btn-secondary');
+        toggleBtn.classList.add('btn-warning');
+        deleteBtn.classList.add('hidden');
+    }
+
+    // Refresh the task list to show/hide checkboxes
+    if (selectedProject) {
+        loadProjectDetails(selectedProject['ПроектID']);
+    }
+}
+
+/**
+ * Toggle item selection for deletion
+ */
+function toggleItemSelection(checkbox) {
+    const itemType = checkbox.dataset.type;
+    const itemId = checkbox.dataset.id;
+    const key = `${itemType}-${itemId}`;
+
+    if (checkbox.checked) {
+        selectedItemsForDeletion.add(key);
+    } else {
+        selectedItemsForDeletion.delete(key);
+    }
+
+    // Show/hide delete button based on selection
+    const deleteBtn = document.getElementById('deleteSelectedBtn');
+    if (selectedItemsForDeletion.size > 0) {
+        deleteBtn.classList.remove('hidden');
+    } else {
+        deleteBtn.classList.add('hidden');
+    }
+
+    // Update visual state
+    const item = checkbox.closest('.task-item, .operation-item');
+    if (item) {
+        if (checkbox.checked) {
+            item.classList.add('selected');
+        } else {
+            item.classList.remove('selected');
+        }
+    }
+}
+
+/**
+ * Show delete confirmation modal
+ */
+function deleteSelected() {
+    if (selectedItemsForDeletion.size === 0) {
+        return;
+    }
+
+    const count = selectedItemsForDeletion.size;
+    const confirmText = document.getElementById('deleteConfirmText');
+    confirmText.textContent = `Вы уверены, что хотите удалить выбранные элементы (${count} шт.)?`;
+
+    document.getElementById('deleteModalBackdrop').classList.add('show');
+}
+
+/**
+ * Close delete confirmation modal
+ */
+function closeDeleteModal() {
+    document.getElementById('deleteModalBackdrop').classList.remove('show');
+}
+
+/**
+ * Confirm and execute deletion
+ */
+function confirmDelete() {
+    const itemsToDelete = Array.from(selectedItemsForDeletion);
+
+    // Delete items one by one
+    const deletePromises = itemsToDelete.map(item => {
+        const [type, id] = item.split('-');
+        return deleteItem(id);
+    });
+
+    Promise.all(deletePromises)
+        .then(() => {
+            console.log('All items deleted successfully');
+            closeDeleteModal();
+            selectedItemsForDeletion.clear();
+
+            // Exit delete mode and reload
+            deleteModeActive = false;
+            const toggleBtn = document.getElementById('toggleDeleteModeBtn');
+            toggleBtn.textContent = 'Групповое удаление';
+            toggleBtn.classList.remove('btn-secondary');
+            toggleBtn.classList.add('btn-warning');
+            document.getElementById('deleteSelectedBtn').classList.add('hidden');
+
+            if (selectedProject) {
+                loadProjectDetails(selectedProject['ПроектID']);
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting items:', error);
+            alert('Ошибка при удалении элементов');
+            closeDeleteModal();
+        });
+}
+
+/**
+ * Delete a single item via API
+ */
+function deleteItem(itemId) {
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+
+    const url = `https://${window.location.host}/${db}/_m_del/${itemId}?JSON`;
+
+    return fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Item deleted:', data);
+        return data;
+    });
+}
+
+/**
+ * Clone project
+ */
+function cloneProject() {
+    if (!selectedProject) return;
+
+    // Pre-fill with current project name
+    const currentName = selectedProject['Проект'] || '';
+    document.getElementById('cloneProjectName').value = currentName + ' (копия)';
+
+    document.getElementById('cloneModalBackdrop').classList.add('show');
+}
+
+/**
+ * Close clone modal
+ */
+function closeCloneModal() {
+    document.getElementById('cloneModalBackdrop').classList.remove('show');
+}
+
+/**
+ * Handle clone form submission
+ */
+document.getElementById('cloneForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    if (!selectedProject) return;
+
+    const newProjectName = document.getElementById('cloneProjectName').value.trim();
+    const currentProjectName = selectedProject['Проект'] || '';
+
+    // Validate that new name is different
+    if (newProjectName === currentProjectName) {
+        alert('Имя нового проекта должно отличаться от текущего');
+        return;
+    }
+
+    if (!newProjectName) {
+        alert('Введите имя нового проекта');
+        return;
+    }
+
+    const projectId = selectedProject['ПроектID'];
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+    formData.append('t693', newProjectName);
+
+    const url = `https://${window.location.host}/${db}/_m_save/${projectId}?JSON&copybtn`;
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Project cloned:', data);
+        closeCloneModal();
+        loadProjects();
+        alert('Проект успешно клонирован');
+    })
+    .catch(error => {
+        console.error('Error cloning project:', error);
+        alert('Ошибка при клонировании проекта');
+    });
+});
