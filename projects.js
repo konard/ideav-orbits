@@ -997,7 +997,7 @@ document.getElementById('projectForm').addEventListener('submit', function(e) {
     formData.append('t677', document.getElementById('projectBudget').value);
 
     const url = projectId ?
-        `https://${window.location.host}/${db}/_m_new/663?JSON&up=1&id=${projectId}` :
+        `https://${window.location.host}/${db}/_m_save/${projectId}?JSON` :
         `https://${window.location.host}/${db}/_m_new/663?JSON&up=1`;
 
     fetch(url, {
@@ -1033,7 +1033,7 @@ document.getElementById('taskForm').addEventListener('submit', function(e) {
     formData.append('t1036', document.getElementById('taskUnit').value); // Ед.изм.
 
     const url = taskId ?
-        `https://${window.location.host}/${db}/_m_new/327?JSON&up=${projectId}&id=${taskId}` :
+        `https://${window.location.host}/${db}/_m_save/${taskId}?JSON` :
         `https://${window.location.host}/${db}/_m_new/327?JSON&up=${projectId}`;
 
     fetch(url, {
@@ -1086,7 +1086,7 @@ document.getElementById('operationForm').addEventListener('submit', function(e) 
     }
 
     const url = operationId ?
-        `https://${window.location.host}/${db}/_m_new/695?JSON&up=${taskId}&id=${operationId}` :
+        `https://${window.location.host}/${db}/_m_save/${operationId}?JSON` :
         `https://${window.location.host}/${db}/_m_new/695?JSON&up=${taskId}`;
 
     fetch(url, {
