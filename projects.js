@@ -13,7 +13,9 @@ let dictionaries = {
     taskStatuses: [],
     units: [],
     operationTemplates: [],
-    objects: []
+    objects: [],
+    directions: [],
+    workTypes: []
 };
 
 /**
@@ -52,7 +54,15 @@ function loadDictionaries() {
         .then(response => response.json())
         .then(data => {
             dictionaries.operationTemplates = data;
-            populateSelect('operationTemplate', data, 'Операция (шаблон)', 'Операция (шаблон)ID');
+
+            // Extract unique directions and work types
+            extractDirectionsAndWorkTypes(data);
+
+            // Populate direction dropdown
+            populateDirectionSelect();
+
+            // Don't populate operation template dropdown initially - wait for filters
+            // populateSelect('operationTemplate', data, 'Операция (шаблон)', 'Операция (шаблон)ID');
         })
         .catch(error => console.error('Error loading operation templates:', error));
 
@@ -126,6 +136,172 @@ function populateSelect(selectId, data, labelField, idField) {
         option.textContent = item[labelField];
         select.appendChild(option);
     });
+}
+
+/**
+ * Extract unique directions and work types from operation templates
+ */
+function extractDirectionsAndWorkTypes(templates) {
+    const directionsSet = new Set();
+    const workTypesMap = new Map(); // Map direction to work types
+
+    templates.forEach(template => {
+        const direction = template['Направление'];
+        const workType = template['Вид работ'];
+
+        if (direction) {
+            directionsSet.add(direction);
+
+            if (workType) {
+                if (!workTypesMap.has(direction)) {
+                    workTypesMap.set(direction, new Set());
+                }
+                workTypesMap.get(direction).add(workType);
+            }
+        }
+    });
+
+    // Convert sets to arrays
+    dictionaries.directions = Array.from(directionsSet).map(name => ({ name }));
+    dictionaries.workTypesMap = workTypesMap;
+}
+
+/**
+ * Populate direction select dropdown
+ */
+function populateDirectionSelect() {
+    const select = document.getElementById('operationDirection');
+    if (!select) return;
+
+    // Clear existing options except the first one
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    // Add new options
+    dictionaries.directions.forEach(direction => {
+        const option = document.createElement('option');
+        option.value = direction.name;
+        option.textContent = direction.name;
+        select.appendChild(option);
+    });
+
+    // Add event listener for direction change
+    select.addEventListener('change', onDirectionChange);
+}
+
+/**
+ * Handle direction selection change
+ */
+function onDirectionChange(event) {
+    const selectedDirection = event.target.value;
+    const workTypeSelect = document.getElementById('operationWorkType');
+    const operationSelect = document.getElementById('operationTemplate');
+
+    // Reset work type dropdown
+    if (workTypeSelect) {
+        while (workTypeSelect.options.length > 1) {
+            workTypeSelect.remove(1);
+        }
+    }
+
+    // Reset operation template dropdown
+    if (operationSelect) {
+        while (operationSelect.options.length > 1) {
+            operationSelect.remove(1);
+        }
+    }
+
+    if (!selectedDirection) {
+        return;
+    }
+
+    // Populate work types for selected direction
+    const workTypes = dictionaries.workTypesMap.get(selectedDirection);
+    if (workTypes && workTypeSelect) {
+        Array.from(workTypes).forEach(workType => {
+            const option = document.createElement('option');
+            option.value = workType;
+            option.textContent = workType;
+            workTypeSelect.appendChild(option);
+        });
+
+        // Add event listener for work type change
+        workTypeSelect.removeEventListener('change', onWorkTypeChange);
+        workTypeSelect.addEventListener('change', onWorkTypeChange);
+    }
+
+    // If no work types exist for this direction, filter operations directly
+    if (!workTypes || workTypes.size === 0) {
+        filterOperationTemplates(selectedDirection, null);
+    }
+}
+
+/**
+ * Handle work type selection change
+ */
+function onWorkTypeChange(event) {
+    const selectedDirection = document.getElementById('operationDirection').value;
+    const selectedWorkType = event.target.value;
+
+    filterOperationTemplates(selectedDirection, selectedWorkType);
+}
+
+/**
+ * Filter operation templates based on direction and work type
+ */
+function filterOperationTemplates(direction, workType) {
+    const operationSelect = document.getElementById('operationTemplate');
+    if (!operationSelect) return;
+
+    // Clear existing options except the first one
+    while (operationSelect.options.length > 1) {
+        operationSelect.remove(1);
+    }
+
+    // Filter templates
+    const filteredTemplates = dictionaries.operationTemplates.filter(template => {
+        const matchesDirection = !direction || template['Направление'] === direction;
+        const matchesWorkType = !workType || template['Вид работ'] === workType;
+        return matchesDirection && matchesWorkType;
+    });
+
+    // Populate filtered options
+    filteredTemplates.forEach(template => {
+        const option = document.createElement('option');
+        option.value = template['Операция (шаблон)ID'];
+        option.textContent = template['Операция (шаблон)'];
+        operationSelect.appendChild(option);
+    });
+}
+
+/**
+ * Reset operation filter dropdowns
+ */
+function resetOperationFilters() {
+    // Reset direction
+    const directionSelect = document.getElementById('operationDirection');
+    if (directionSelect) {
+        directionSelect.value = '';
+    }
+
+    // Reset work type
+    const workTypeSelect = document.getElementById('operationWorkType');
+    if (workTypeSelect) {
+        workTypeSelect.value = '';
+        while (workTypeSelect.options.length > 1) {
+            workTypeSelect.remove(1);
+        }
+    }
+
+    // Reset operation template
+    const operationSelect = document.getElementById('operationTemplate');
+    if (operationSelect) {
+        operationSelect.value = '';
+        while (operationSelect.options.length > 1) {
+            operationSelect.remove(1);
+        }
+    }
 }
 
 /**
@@ -611,6 +787,10 @@ function showAddOperationModal(taskId) {
     document.getElementById('operationForm').reset();
     document.getElementById('operationId').value = '';
     document.getElementById('operationTaskId').value = taskId;
+
+    // Reset filter dropdowns
+    resetOperationFilters();
+
     document.getElementById('operationModalBackdrop').classList.add('show');
 }
 
@@ -632,14 +812,55 @@ function editOperation(operationId) {
     document.getElementById('operationId').value = operationId;
     document.getElementById('operationTaskId').value = opData['Задача проектаID'];
 
-    // Set operation template
-    const templateSelect = document.getElementById('operationTemplate');
-    const templateOption = Array.from(templateSelect.options).find(opt =>
-        opt.textContent === opData['Операция']
+    // Find the operation template in dictionaries
+    const template = dictionaries.operationTemplates.find(t =>
+        t['Операция (шаблон)'] === opData['Операция']
     );
-    if (templateOption) {
-        templateSelect.value = templateOption.value;
+
+    // Reset filters first
+    resetOperationFilters();
+
+    // If template has direction and work type, set filters accordingly
+    if (template) {
+        const direction = template['Направление'];
+        const workType = template['Вид работ'];
+
+        // Set direction and trigger change
+        if (direction) {
+            const directionSelect = document.getElementById('operationDirection');
+            if (directionSelect) {
+                directionSelect.value = direction;
+                // Manually trigger the change event to populate work types
+                onDirectionChange({ target: directionSelect });
+
+                // Set work type if available
+                if (workType) {
+                    setTimeout(() => {
+                        const workTypeSelect = document.getElementById('operationWorkType');
+                        if (workTypeSelect) {
+                            workTypeSelect.value = workType;
+                            // Trigger change to filter operations
+                            onWorkTypeChange({ target: workTypeSelect });
+                        }
+                    }, 0);
+                }
+            }
+        }
+    } else {
+        // If no direction/work type, show all operations
+        populateSelect('operationTemplate', dictionaries.operationTemplates, 'Операция (шаблон)', 'Операция (шаблон)ID');
     }
+
+    // Set operation template after filters are applied
+    setTimeout(() => {
+        const templateSelect = document.getElementById('operationTemplate');
+        const templateOption = Array.from(templateSelect.options).find(opt =>
+            opt.textContent === opData['Операция']
+        );
+        if (templateOption) {
+            templateSelect.value = templateOption.value;
+        }
+    }, 100);
 
     document.getElementById('operationNorm').value = ''; // Not in response
     document.getElementById('operationQuantity').value = opData['Операция Кол-во'] || '';
