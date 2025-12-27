@@ -407,6 +407,21 @@ function filterProjects() {
 }
 
 /**
+ * Filter tasks and operations based on search input
+ */
+function filterTasksAndOperations() {
+    const searchTerm = document.getElementById('taskSearch').value.toLowerCase();
+
+    const filtered = projectDetails.filter(item => {
+        return Object.values(item).some(value =>
+            value && value.toString().toLowerCase().includes(searchTerm)
+        );
+    });
+
+    displayTasksAndOperations(filtered);
+}
+
+/**
  * Select a project and load its details
  */
 function selectProject(projectId) {

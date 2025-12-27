@@ -238,9 +238,13 @@
             <button class="btn btn-sm btn-danger float-right hidden" style="margin-right: 5px;" id="deleteSelectedBtn" onclick="deleteSelected()">Удалить выбранные</button>
         </div>
 
-        <button class="btn btn-primary btn-sm" onclick="showAddTaskModal()">
-            + Добавить задачу
-        </button>
+        <div class="controls-row">
+            <button class="btn btn-primary btn-sm" onclick="showAddTaskModal()">
+                + Добавить задачу
+            </button>
+
+            <input type="text" class="search-box" id="taskSearch" placeholder="Поиск по любому полю..." onkeyup="filterTasksAndOperations()">
+        </div>
 
         <div class="task-list" id="taskList">
             <!-- Tasks and operations will be loaded here -->
