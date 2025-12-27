@@ -1064,7 +1064,18 @@ document.getElementById('operationForm').addEventListener('submit', function(e) 
     const taskId = document.getElementById('operationTaskId').value;
     const formData = new FormData();
     formData.append('_xsrf', xsrf);
-    formData.append('t702', document.getElementById('operationTemplate').value); // Операция (шаблон)
+
+    const templateId = document.getElementById('operationTemplate').value;
+    formData.append('t702', templateId); // Операция (шаблон)
+
+    // Find the selected template and add its name as t2628
+    const selectedTemplate = dictionaries.operationTemplates.find(t =>
+        t['Операция (шаблон)ID'] === templateId
+    );
+    if (selectedTemplate && selectedTemplate['Операция (шаблон)']) {
+        formData.append('t2628', selectedTemplate['Операция (шаблон)']); // Имя операции из шаблона
+    }
+
     formData.append('t704', document.getElementById('operationNorm').value); // Норматив
     formData.append('t2403', document.getElementById('operationQuantity').value); // Кол-во
     formData.append('t3060', document.getElementById('operationUnit').value); // Ед.изм.
