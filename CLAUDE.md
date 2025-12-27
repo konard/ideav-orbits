@@ -13,15 +13,3 @@ Your prepared branch: issue-25-ce19f963
 Your prepared working directory: /tmp/gh-issue-solver-1764870658409
 
 Proceed.
-
----
-
-Issue to solve: https://github.com/ideav/orbits/issues/76
-Your prepared branch: issue-76-25e89baea2d9
-Your prepared working directory: /tmp/gh-issue-solver-1766844144643
-Your forked repository: konard/ideav-orbits
-Original repository (upstream): ideav/orbits
-
-Proceed.
-
-Run timestamp: 2025-12-27T14:02:29.017Z
