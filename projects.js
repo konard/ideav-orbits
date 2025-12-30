@@ -1033,7 +1033,7 @@ document.getElementById('taskForm').addEventListener('submit', function(e) {
 
     const url = taskId ?
         `https://${window.location.host}/${db}/_m_save/${taskId}?JSON` :
-        `https://${window.location.host}/${db}/_m_new/327?JSON&up=${projectId}`;
+        `https://${window.location.host}/${db}/_m_new/678?JSON&up=${projectId}`;
 
     fetch(url, {
         method: 'POST',
