@@ -954,7 +954,6 @@ function editOperation(operationId) {
         }
     }, 100);
 
-    document.getElementById('operationNorm').value = ''; // Not in response
     document.getElementById('operationQuantity').value = opData['Операция Кол-во'] || '';
 
     // Set unit
