@@ -1025,7 +1025,7 @@ document.getElementById('taskForm').addEventListener('submit', function(e) {
     const projectId = document.getElementById('taskProjectId').value;
     const formData = new FormData();
     formData.append('_xsrf', xsrf);
-    formData.append('t679', document.getElementById('taskName').value); // Задача проекта
+    formData.append('t678', document.getElementById('taskName').value); // Задача проекта
     formData.append('t683', document.getElementById('taskDescription').value); // Описание
     formData.append('t688', document.getElementById('taskStatus').value); // Статус задачи
     formData.append('t1030', document.getElementById('taskQuantity').value); // К-во
@@ -1075,7 +1075,6 @@ document.getElementById('operationForm').addEventListener('submit', function(e) 
         formData.append('t695', selectedTemplate['Операция (шаблон)']); // Имя операции из шаблона
     }
 
-    formData.append('t704', document.getElementById('operationNorm').value); // Норматив
     formData.append('t2403', document.getElementById('operationQuantity').value); // Кол-во
     formData.append('t3060', document.getElementById('operationUnit').value); // Ед.изм.
 
