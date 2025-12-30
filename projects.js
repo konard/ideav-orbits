@@ -93,37 +93,23 @@ function loadDictionaries() {
         })
         .catch(error => console.error('Error loading task statuses:', error));
 
-    // Load metadata to get clients and objects
-    fetch(`https://${window.location.host}/${db}/metadata`)
-        .then(response => response.json())
-        .then(metadata => {
-            // Find clients table (id 665)
-            const clientsTable = metadata.find(t => t.id === '665');
-            if (clientsTable) {
-                loadTableData(665, 'clients', 'Заказчик', 'ЗаказчикID');
-            }
-
-            // Find objects table (id 715)
-            const objectsTable = metadata.find(t => t.id === '715');
-            if (objectsTable) {
-                loadTableData(715, 'objects', 'Объект ', 'Объект ID');
-            }
-        })
-        .catch(error => console.error('Error loading metadata:', error));
-}
-
-/**
- * Load table data for dictionaries
- */
-function loadTableData(tableId, dictKey, labelField, idField) {
-    fetch(`https://${window.location.host}/${db}/report/22?JSON_KV&FR_table=${tableId}`)
+    // Load clients from report/6096 (Заказчики)
+    fetch(`https://${window.location.host}/${db}/report/6096?JSON_KV`)
         .then(response => response.json())
         .then(data => {
-            dictionaries[dictKey] = data;
-            const selectId = dictKey === 'clients' ? 'projectClient' : 'projectObject';
-            populateSelect(selectId, data, labelField, idField);
+            dictionaries.clients = data;
+            populateSelect('projectClient', data, 'Заказчик', 'ЗаказчикID');
         })
-        .catch(error => console.error(`Error loading ${dictKey}:`, error));
+        .catch(error => console.error('Error loading clients:', error));
+
+    // Load objects from report/6102 (Объекты)
+    fetch(`https://${window.location.host}/${db}/report/6102?JSON_KV`)
+        .then(response => response.json())
+        .then(data => {
+            dictionaries.objects = data;
+            populateSelect('projectObject', data, 'Объект', 'Объект ID');
+        })
+        .catch(error => console.error('Error loading objects:', error));
 }
 
 /**
