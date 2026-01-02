@@ -24,7 +24,8 @@ let selectedItemsForDeletion = new Set();
 let lastOperationFilters = {
     taskId: null,
     direction: '',
-    workType: ''
+    workType: '',
+    templateFilter: false
 };
 
 /**
@@ -183,6 +184,13 @@ function populateDirectionSelect() {
 
     // Add event listener for direction change
     select.addEventListener('change', onDirectionChange);
+
+    // Add event listener for template filter checkbox
+    const templateFilterCheckbox = document.getElementById('operationTemplateFilter');
+    if (templateFilterCheckbox) {
+        templateFilterCheckbox.removeEventListener('change', onTemplateFilterChange);
+        templateFilterCheckbox.addEventListener('change', onTemplateFilterChange);
+    }
 }
 
 /**
@@ -232,7 +240,8 @@ function onDirectionChange(event) {
 
     // If no work types exist for this direction, filter operations directly
     if (!workTypes || workTypes.size === 0) {
-        filterOperationTemplates(selectedDirection, null);
+        const templateFilter = document.getElementById('operationTemplateFilter')?.checked || false;
+        filterOperationTemplates(selectedDirection, null, templateFilter);
     }
 }
 
@@ -246,13 +255,42 @@ function onWorkTypeChange(event) {
     // Save selected work type to state
     lastOperationFilters.workType = selectedWorkType;
 
-    filterOperationTemplates(selectedDirection, selectedWorkType);
+    const templateFilter = document.getElementById('operationTemplateFilter')?.checked || false;
+    filterOperationTemplates(selectedDirection, selectedWorkType, templateFilter);
 }
 
 /**
- * Filter operation templates based on direction and work type
+ * Handle template filter checkbox change
  */
-function filterOperationTemplates(direction, workType) {
+function onTemplateFilterChange(event) {
+    const selectedDirection = document.getElementById('operationDirection').value;
+    const selectedWorkType = document.getElementById('operationWorkType').value;
+    const templateFilter = event.target.checked;
+
+    // Save template filter state
+    lastOperationFilters.templateFilter = templateFilter;
+
+    filterOperationTemplates(selectedDirection, selectedWorkType, templateFilter);
+}
+
+/**
+ * Get filtered operation templates based on direction, work type, and template filter
+ */
+function getFilteredOperationTemplates(direction, workType, templateFilter) {
+    return dictionaries.operationTemplates.filter(template => {
+        const matchesDirection = !direction || template['Направление'] === direction;
+        const matchesWorkType = !workType || template['Вид работ'] === workType;
+        // If templateFilter is checked, only show templates with "Шаблонная" === "X"
+        // If templateFilter is not checked, show all templates
+        const matchesTemplateFilter = !templateFilter || template['Шаблонная'] === 'X';
+        return matchesDirection && matchesWorkType && matchesTemplateFilter;
+    });
+}
+
+/**
+ * Filter operation templates based on direction, work type, and template filter
+ */
+function filterOperationTemplates(direction, workType, templateFilter) {
     const operationSelect = document.getElementById('operationTemplate');
     if (!operationSelect) return;
 
@@ -261,12 +299,8 @@ function filterOperationTemplates(direction, workType) {
         operationSelect.remove(1);
     }
 
-    // Filter templates
-    const filteredTemplates = dictionaries.operationTemplates.filter(template => {
-        const matchesDirection = !direction || template['Направление'] === direction;
-        const matchesWorkType = !workType || template['Вид работ'] === workType;
-        return matchesDirection && matchesWorkType;
-    });
+    // Get filtered templates
+    const filteredTemplates = getFilteredOperationTemplates(direction, workType, templateFilter);
 
     // Populate filtered options
     filteredTemplates.forEach(template => {
@@ -296,6 +330,12 @@ function resetOperationFilters() {
         }
     }
 
+    // Reset template filter checkbox
+    const templateFilterCheckbox = document.getElementById('operationTemplateFilter');
+    if (templateFilterCheckbox) {
+        templateFilterCheckbox.checked = false;
+    }
+
     // Reset operation template
     const operationSelect = document.getElementById('operationTemplate');
     if (operationSelect) {
@@ -312,6 +352,12 @@ function resetOperationFilters() {
 function restoreOperationFilters() {
     const directionSelect = document.getElementById('operationDirection');
     const workTypeSelect = document.getElementById('operationWorkType');
+    const templateFilterCheckbox = document.getElementById('operationTemplateFilter');
+
+    // Restore template filter checkbox
+    if (templateFilterCheckbox) {
+        templateFilterCheckbox.checked = lastOperationFilters.templateFilter || false;
+    }
 
     // Restore direction if it was previously selected
     if (lastOperationFilters.direction && directionSelect) {
@@ -1053,55 +1099,157 @@ document.getElementById('taskForm').addEventListener('submit', function(e) {
 });
 
 /**
+ * Create a single operation via _m_new
+ */
+async function createOperation(taskId, template, quantity, unit, start) {
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+    formData.append('t702', template['Операция (шаблон)ID']); // Операция (шаблон)
+
+    if (template['Операция (шаблон)']) {
+        formData.append('t695', template['Операция (шаблон)']); // Имя операции из шаблона
+    }
+
+    if (quantity) {
+        formData.append('t2403', quantity); // Кол-во
+    }
+    if (unit) {
+        formData.append('t3060', unit); // Ед.изм.
+    }
+    if (start) {
+        formData.append('t2665', start); // Начать
+    }
+
+    const url = `https://${window.location.host}/${db}/_m_new/695?JSON&up=${taskId}`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        body: formData
+    });
+
+    return response.json();
+}
+
+/**
  * Handle operation form submission
  */
-document.getElementById('operationForm').addEventListener('submit', function(e) {
+document.getElementById('operationForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const operationId = document.getElementById('operationId').value;
     const taskId = document.getElementById('operationTaskId').value;
-    const formData = new FormData();
-    formData.append('_xsrf', xsrf);
-
     const templateId = document.getElementById('operationTemplate').value;
-    formData.append('t702', templateId); // Операция (шаблон)
+    const quantity = document.getElementById('operationQuantity').value;
+    const unit = document.getElementById('operationUnit').value;
+    const start = document.getElementById('operationStart').value;
 
-    // Find the selected template and add its name as t695
-    const selectedTemplate = dictionaries.operationTemplates.find(t =>
-        t['Операция (шаблон)ID'] === templateId
-    );
-    if (selectedTemplate && selectedTemplate['Операция (шаблон)']) {
-        formData.append('t695', selectedTemplate['Операция (шаблон)']); // Имя операции из шаблона
-    }
+    // If editing an existing operation
+    if (operationId) {
+        const formData = new FormData();
+        formData.append('_xsrf', xsrf);
+        formData.append('t702', templateId);
 
-    formData.append('t2403', document.getElementById('operationQuantity').value); // Кол-во
-    formData.append('t3060', document.getElementById('operationUnit').value); // Ед.изм.
-
-    const startValue = document.getElementById('operationStart').value;
-    if (startValue) {
-        formData.append('t2665', startValue); // Начать
-    }
-
-    const url = operationId ?
-        `https://${window.location.host}/${db}/_m_save/${operationId}?JSON` :
-        `https://${window.location.host}/${db}/_m_new/695?JSON&up=${taskId}`;
-
-    fetch(url, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Operation saved:', data);
-        closeOperationModal();
-        if (selectedProject) {
-            loadProjectDetails(selectedProject['ПроектID']);
+        const selectedTemplate = dictionaries.operationTemplates.find(t =>
+            t['Операция (шаблон)ID'] === templateId
+        );
+        if (selectedTemplate && selectedTemplate['Операция (шаблон)']) {
+            formData.append('t695', selectedTemplate['Операция (шаблон)']);
         }
-    })
-    .catch(error => {
-        console.error('Error saving operation:', error);
-        alert('Ошибка сохранения операции');
-    });
+
+        formData.append('t2403', quantity);
+        formData.append('t3060', unit);
+        if (start) {
+            formData.append('t2665', start);
+        }
+
+        const url = `https://${window.location.host}/${db}/_m_save/${operationId}?JSON`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            console.log('Operation saved:', data);
+            closeOperationModal();
+            if (selectedProject) {
+                loadProjectDetails(selectedProject['ПроектID']);
+            }
+        } catch (error) {
+            console.error('Error saving operation:', error);
+            alert('Ошибка сохранения операции');
+        }
+        return;
+    }
+
+    // Creating new operation(s)
+    // If no specific operation is selected, add all filtered operations
+    if (!templateId) {
+        const direction = document.getElementById('operationDirection').value;
+        const workType = document.getElementById('operationWorkType').value;
+        const templateFilter = document.getElementById('operationTemplateFilter')?.checked || false;
+
+        const filteredTemplates = getFilteredOperationTemplates(direction, workType, templateFilter);
+
+        if (filteredTemplates.length === 0) {
+            alert('Нет операций для добавления. Пожалуйста, выберите фильтры.');
+            return;
+        }
+
+        // Show loading indicator
+        const loadingIndicator = document.getElementById('operationLoadingIndicator');
+        const saveBtn = document.getElementById('saveOperationBtn');
+        const cancelBtn = document.querySelector('#operationForm .btn-secondary');
+
+        if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+        if (saveBtn) saveBtn.disabled = true;
+        if (cancelBtn) cancelBtn.disabled = true;
+
+        try {
+            // Add operations sequentially
+            for (let i = 0; i < filteredTemplates.length; i++) {
+                const template = filteredTemplates[i];
+                console.log(`Adding operation ${i + 1} of ${filteredTemplates.length}:`, template['Операция (шаблон)']);
+                await createOperation(taskId, template, quantity, unit, start);
+            }
+
+            console.log('All operations added successfully');
+            closeOperationModal();
+            if (selectedProject) {
+                loadProjectDetails(selectedProject['ПроектID']);
+            }
+        } catch (error) {
+            console.error('Error adding operations:', error);
+            alert('Ошибка добавления операций');
+        } finally {
+            // Hide loading indicator
+            if (loadingIndicator) loadingIndicator.classList.add('hidden');
+            if (saveBtn) saveBtn.disabled = false;
+            if (cancelBtn) cancelBtn.disabled = false;
+        }
+    } else {
+        // Single operation selected
+        const selectedTemplate = dictionaries.operationTemplates.find(t =>
+            t['Операция (шаблон)ID'] === templateId
+        );
+
+        if (!selectedTemplate) {
+            alert('Операция не найдена');
+            return;
+        }
+
+        try {
+            const data = await createOperation(taskId, selectedTemplate, quantity, unit, start);
+            console.log('Operation saved:', data);
+            closeOperationModal();
+            if (selectedProject) {
+                loadProjectDetails(selectedProject['ПроектID']);
+            }
+        } catch (error) {
+            console.error('Error saving operation:', error);
+            alert('Ошибка сохранения операции');
+        }
+    }
 });
 
 /**
