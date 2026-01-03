@@ -1613,9 +1613,11 @@ function populateProductSelect() {
 }
 
 /**
- * Filter product dropdown based on search input
+ * Initialize tab switching and filter for product dropdown
+ * Note: Using $(document).ready() instead of DOMContentLoaded because this script is loaded dynamically
+ * and DOMContentLoaded may have already fired by the time this script executes
  */
-document.addEventListener('DOMContentLoaded', function() {
+$(document).ready(function() {
     // Initialize tab switching for project modal
     // Use jQuery's tab() method to handle clicks since stopPropagation() on modal prevents default Bootstrap behavior
     $('#projectInfo-tab').on('click', function(e) {
@@ -1628,6 +1630,7 @@ document.addEventListener('DOMContentLoaded', function() {
         $(this).tab('show');
     });
 
+    // Filter product dropdown based on search input
     const productSearchInput = document.getElementById('productSearch');
     if (productSearchInput) {
         productSearchInput.addEventListener('keyup', function() {
