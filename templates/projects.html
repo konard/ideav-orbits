@@ -263,6 +263,35 @@
     .product-delete-btn:hover {
         color: #c82333;
     }
+
+    .chevron {
+        cursor: pointer;
+        margin-right: 10px;
+        color: #6c757d;
+        font-size: 12px;
+        user-select: none;
+        transition: transform 0.2s;
+    }
+
+    .chevron.expanded {
+        transform: rotate(90deg);
+    }
+
+    .operation-count-bubble {
+        display: inline-block;
+        background-color: #007bff;
+        color: white;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 12px;
+        margin-right: 5px;
+        min-width: 20px;
+        text-align: center;
+    }
+
+    .operations-hidden {
+        display: none;
+    }
 </style>
 
 <div class="project-list-container">

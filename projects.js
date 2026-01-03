@@ -541,11 +541,14 @@ function displayTasksAndOperations(data) {
 
         const deleteCheckbox = deleteModeActive ? `<input type="checkbox" class="delete-checkbox" data-type="task" data-id="${taskId}" onchange="toggleItemSelection(this)">` : '';
         const isSelected = selectedItemsForDeletion.has(`task-${taskId}`) ? 'selected' : '';
+        const operationCount = operations.length;
+        const operationCountBubble = operationCount > 0 ? `<span class="operation-count-bubble">${operationCount}</span>` : '';
 
         let html = `
             <div class="task-item ${isSelected}" draggable="${!deleteModeActive}" data-task-id="${taskId}" data-order="${task['Задача проектаOrder']}">
                 ${deleteCheckbox}
                 <span class="drag-handle" style="display: ${deleteModeActive ? 'none' : 'inline'}">☰</span>
+                <span class="chevron" style="display: ${deleteModeActive || operationCount === 0 ? 'none' : 'inline'}" onclick="toggleOperations('${taskId}')">▶</span>
                 <span class="task-order">${index + 1}</span>
                 <div class="task-content">
                     <strong>${escapeHtml(task['Задача проекта'] || 'Без названия')}</strong>
@@ -553,6 +556,7 @@ function displayTasksAndOperations(data) {
                     ${task['Статус задачи'] ? '<br><small>Статус: ' + escapeHtml(task['Статус задачи']) + '</small>' : ''}
                 </div>
                 <div class="task-actions">
+                    ${operationCountBubble}
                     <button class="btn btn-sm btn-primary" onclick="showAddOperationModal('${taskId}')">+ Операция</button>
                     <button class="btn btn-sm btn-secondary" onclick="editTask('${taskId}')">Изм.</button>
                 </div>
@@ -566,7 +570,7 @@ function displayTasksAndOperations(data) {
                 const opIsSelected = selectedItemsForDeletion.has(`operation-${op['ОперацияID']}`) ? 'selected' : '';
 
                 html += `
-                    <div class="operation-item ${opIsSelected}" draggable="${!deleteModeActive}" data-operation-id="${op['ОперацияID']}" data-task-id="${taskId}" data-order="${op['ОперацияOrder']}">
+                    <div class="operation-item operations-hidden ${opIsSelected}" draggable="${!deleteModeActive}" data-operation-id="${op['ОперацияID']}" data-task-id="${taskId}" data-order="${op['ОперацияOrder']}">
                         ${opDeleteCheckbox}
                         <span class="drag-handle" style="display: ${deleteModeActive ? 'none' : 'inline'}">☰</span>
                         <span class="operation-order">${opIndex + 1}</span>
@@ -596,6 +600,41 @@ function displayTasksAndOperations(data) {
     // Add drag and drop handlers (only if not in delete mode)
     if (!deleteModeActive) {
         addDragAndDropHandlers();
+    }
+}
+
+/**
+ * Toggle visibility of operations for a specific task
+ */
+function toggleOperations(taskId) {
+    // Find all operations for this task
+    const operations = document.querySelectorAll(`.operation-item[data-task-id="${taskId}"]`);
+
+    // Find the chevron for this task
+    const taskItem = document.querySelector(`.task-item[data-task-id="${taskId}"]`);
+    const chevron = taskItem ? taskItem.querySelector('.chevron') : null;
+
+    if (operations.length === 0) return;
+
+    // Check if operations are currently hidden
+    const isHidden = operations[0].classList.contains('operations-hidden');
+
+    // Toggle visibility
+    operations.forEach(operation => {
+        if (isHidden) {
+            operation.classList.remove('operations-hidden');
+        } else {
+            operation.classList.add('operations-hidden');
+        }
+    });
+
+    // Toggle chevron rotation
+    if (chevron) {
+        if (isHidden) {
+            chevron.classList.add('expanded');
+        } else {
+            chevron.classList.remove('expanded');
+        }
     }
 }
 
