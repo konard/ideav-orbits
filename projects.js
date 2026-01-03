@@ -929,6 +929,24 @@ function showAddOperationModal(taskId) {
     // Hide delete button when adding new operation
     document.getElementById('deleteOperationBtn').classList.add('hidden');
 
+    // Show filter fields for creation, hide template link
+    document.getElementById('operationDirection').parentElement.style.display = 'block';
+    document.getElementById('operationWorkType').parentElement.style.display = 'block';
+    document.getElementById('operationTemplateFilter').parentElement.parentElement.style.display = 'block';
+    document.getElementById('operationTemplate').parentElement.style.display = 'block';
+    document.getElementById('operationTemplateNameGroup').style.display = 'none';
+
+    // Enable all fields for creation
+    document.getElementById('operationDirection').disabled = false;
+    document.getElementById('operationWorkType').disabled = false;
+    document.getElementById('operationTemplateFilter').disabled = false;
+
+    // Hide the Операция name field for creation (it will be auto-filled from template)
+    const operationNameField = document.getElementById('operationName');
+    if (operationNameField) {
+        operationNameField.parentElement.style.display = 'none';
+    }
+
     document.getElementById('operationModalBackdrop').classList.add('show');
 }
 
@@ -951,54 +969,34 @@ function editOperation(operationId) {
     document.getElementById('operationTaskId').value = opData['Задача проектаID'];
 
     // Find the operation template in dictionaries
+    const templateId = opData['Операция (шаблон)ID'];
     const template = dictionaries.operationTemplates.find(t =>
-        t['Операция (шаблон)'] === opData['Операция']
+        t['Операция (шаблон)ID'] === templateId
     );
 
-    // Reset filters first
-    resetOperationFilters();
+    // Hide filter fields in edit mode, show template name as link
+    document.getElementById('operationDirection').parentElement.style.display = 'none';
+    document.getElementById('operationWorkType').parentElement.style.display = 'none';
+    document.getElementById('operationTemplateFilter').parentElement.parentElement.style.display = 'none';
+    document.getElementById('operationTemplate').parentElement.style.display = 'none';
 
-    // If template has direction and work type, set filters accordingly
-    if (template) {
-        const direction = template['Направление'];
-        const workType = template['Вид работ'];
-
-        // Set direction and trigger change
-        if (direction) {
-            const directionSelect = document.getElementById('operationDirection');
-            if (directionSelect) {
-                directionSelect.value = direction;
-                // Manually trigger the change event to populate work types
-                onDirectionChange({ target: directionSelect });
-
-                // Set work type if available
-                if (workType) {
-                    setTimeout(() => {
-                        const workTypeSelect = document.getElementById('operationWorkType');
-                        if (workTypeSelect) {
-                            workTypeSelect.value = workType;
-                            // Trigger change to filter operations
-                            onWorkTypeChange({ target: workTypeSelect });
-                        }
-                    }, 0);
-                }
-            }
-        }
+    // Show template name as read-only hyperlink
+    const templateNameGroup = document.getElementById('operationTemplateNameGroup');
+    const templateLink = document.getElementById('operationTemplateLink');
+    if (template && templateId) {
+        templateLink.textContent = template['Операция (шаблон)'] || opData['Операция'] || '-';
+        templateLink.href = `https://${window.location.host}/${db}/edit_obj/${templateId}`;
+        templateNameGroup.style.display = 'block';
     } else {
-        // If no direction/work type, show all operations
-        populateSelect('operationTemplate', dictionaries.operationTemplates, 'Операция (шаблон)', 'Операция (шаблон)ID');
+        templateNameGroup.style.display = 'none';
     }
 
-    // Set operation template after filters are applied
-    setTimeout(() => {
-        const templateSelect = document.getElementById('operationTemplate');
-        const templateOption = Array.from(templateSelect.options).find(opt =>
-            opt.textContent === opData['Операция']
-        );
-        if (templateOption) {
-            templateSelect.value = templateOption.value;
-        }
-    }, 100);
+    // Show and populate the editable Операция field
+    const operationNameField = document.getElementById('operationName');
+    if (operationNameField) {
+        operationNameField.value = opData['Операция'] || '';
+        operationNameField.parentElement.style.display = 'block';
+    }
 
     document.getElementById('operationQuantity').value = opData['Операция Кол-во'] || '';
 
@@ -1147,13 +1145,20 @@ document.getElementById('operationForm').addEventListener('submit', async functi
     if (operationId) {
         const formData = new FormData();
         formData.append('_xsrf', xsrf);
-        formData.append('t702', templateId);
 
-        const selectedTemplate = dictionaries.operationTemplates.find(t =>
-            t['Операция (шаблон)ID'] === templateId
-        );
-        if (selectedTemplate && selectedTemplate['Операция (шаблон)']) {
-            formData.append('t695', selectedTemplate['Операция (шаблон)']);
+        // Get the operation name from the editable field
+        const operationNameField = document.getElementById('operationName');
+        const operationName = operationNameField ? operationNameField.value : '';
+
+        // Save the editable Операция field (t695)
+        if (operationName) {
+            formData.append('t695', operationName);
+        }
+
+        // Keep the template ID if it exists (for reference)
+        const opData = projectDetails.find(item => item['ОперацияID'] === operationId);
+        if (opData && opData['Операция (шаблон)ID']) {
+            formData.append('t702', opData['Операция (шаблон)ID']);
         }
 
         formData.append('t2403', quantity);
