@@ -601,6 +601,11 @@ function displayTasksAndOperations(data) {
     if (!deleteModeActive) {
         addDragAndDropHandlers();
     }
+
+    // Expand all operations when in delete mode
+    if (deleteModeActive) {
+        expandAllOperations();
+    }
 }
 
 /**
@@ -1382,14 +1387,6 @@ function toggleDeleteMode() {
     // Refresh the task list to show/hide checkboxes
     if (selectedProject) {
         loadProjectDetails(selectedProject['ПроектID']);
-    }
-
-    // Expand all operations when entering deletion mode
-    if (deleteModeActive) {
-        // Use setTimeout to ensure the DOM is updated after loadProjectDetails
-        setTimeout(() => {
-            expandAllOperations();
-        }, 0);
     }
 }
 
