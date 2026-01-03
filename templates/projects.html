@@ -313,7 +313,7 @@
     <div class="task-section" id="taskSection">
         <div class="section-title">
             <span id="selectedProjectName"></span>
-            <button class="btn btn-sm btn-secondary float-right" onclick="editProject()">Редактировать проект</button>
+            <button class="btn btn-sm btn-outline-secondary float-right" onclick="editProject()">Редактировать проект</button>
             <button class="btn btn-sm btn-primary float-right" style="margin-right: 5px;" onclick="cloneProject()">Клонировать</button>
             <button class="btn btn-sm btn-warning float-right" style="margin-right: 5px;" id="toggleDeleteModeBtn" onclick="toggleDeleteMode()">Групповое удаление</button>
             <button class="btn btn-sm btn-danger float-right hidden" style="margin-right: 5px;" id="deleteSelectedBtn" onclick="deleteSelected()">Удалить выбранные</button>
@@ -426,7 +426,7 @@
             </div>
 
             <div class="btn-group-custom">
-                <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">Отмена</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="closeProjectModal()">Отмена</button>
                 <button type="submit" class="btn btn-primary">Сохранить</button>
             </div>
         </form>
@@ -473,7 +473,7 @@
             <div class="btn-group-custom">
                 <button type="button" class="btn btn-danger hidden" id="deleteTaskBtn" onclick="confirmDeleteTask()">Удалить</button>
                 <div style="flex-grow: 1;"></div>
-                <button type="button" class="btn btn-secondary" onclick="closeTaskModal()">Отмена</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="closeTaskModal()">Отмена</button>
                 <button type="submit" class="btn btn-primary">Сохранить</button>
             </div>
         </form>
@@ -491,7 +491,7 @@
             </div>
 
             <div class="btn-group-custom">
-                <button type="button" class="btn btn-secondary" onclick="closeCloneModal()">Отмена</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="closeCloneModal()">Отмена</button>
                 <button type="submit" class="btn btn-primary">Клонировать</button>
             </div>
         </form>
@@ -505,7 +505,7 @@
         <p id="deleteConfirmText">Вы уверены, что хотите удалить выбранные элементы?</p>
 
         <div class="btn-group-custom">
-            <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Отмена</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="closeDeleteModal()">Отмена</button>
             <button type="button" class="btn btn-danger" onclick="confirmDelete()">Удалить</button>
         </div>
     </div>
@@ -579,7 +579,7 @@
             <div class="btn-group-custom">
                 <button type="button" class="btn btn-danger hidden" id="deleteOperationBtn" onclick="confirmDeleteOperation()">Удалить</button>
                 <div style="flex-grow: 1;"></div>
-                <button type="button" class="btn btn-secondary" onclick="closeOperationModal()">Отмена</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="closeOperationModal()">Отмена</button>
                 <button type="submit" class="btn btn-primary" id="saveOperationBtn">Сохранить</button>
             </div>
             <div id="operationLoadingIndicator" class="hidden" style="margin-top: 16px; text-align: center;">
