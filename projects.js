@@ -548,7 +548,7 @@ function displayTasksAndOperations(data) {
             <div class="task-item ${isSelected}" draggable="${!deleteModeActive}" data-task-id="${taskId}" data-order="${task['Задача проектаOrder']}">
                 ${deleteCheckbox}
                 <span class="drag-handle" style="display: ${deleteModeActive ? 'none' : 'inline'}">☰</span>
-                <span class="chevron" style="display: ${deleteModeActive || operationCount === 0 ? 'none' : 'inline'}" onclick="toggleOperations('${taskId}')">›</span>
+                <span class="chevron" style="display: ${deleteModeActive || operationCount === 0 ? 'none' : 'inline'}" onclick="toggleOperations('${taskId}')">></span>
                 <span class="task-order">${index + 1}</span>
                 <div class="task-content">
                     <strong>${escapeHtml(task['Задача проекта'] || 'Без названия')}</strong>
