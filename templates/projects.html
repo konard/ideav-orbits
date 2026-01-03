@@ -217,6 +217,52 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
+
+    .product-item {
+        padding: 12px;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: #fff;
+        cursor: move;
+    }
+
+    .product-item:last-child {
+        border-bottom: none;
+    }
+
+    .product-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .product-item.dragging {
+        opacity: 0.5;
+    }
+
+    .product-content {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+    }
+
+    .product-actions {
+        display: flex;
+        gap: 5px;
+    }
+
+    .product-delete-btn {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 0 8px;
+    }
+
+    .product-delete-btn:hover {
+        color: #c82333;
+    }
 </style>
 
 <div class="project-list-container">
@@ -261,53 +307,92 @@
 <div class="modal-backdrop" id="projectModalBackdrop" onclick="closeProjectModal()">
     <div class="modal-dialog-custom" onclick="event.stopPropagation()">
         <h5 id="projectModalTitle">Добавить проект</h5>
+
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs" id="projectTabs" role="tablist" style="margin-bottom: 20px;">
+            <li class="nav-item">
+                <a class="nav-link active" id="projectInfo-tab" data-toggle="tab" href="#projectInfo" role="tab">Проект</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="projectProducts-tab" data-toggle="tab" href="#projectProducts" role="tab">Изделия</a>
+            </li>
+        </ul>
+
         <form id="projectForm">
             <input type="hidden" id="projectId">
 
-            <div class="form-group">
-                <label for="projectName">Проект *</label>
-                <input type="text" class="form-control-custom" id="projectName" required>
-            </div>
+            <!-- Tab Content -->
+            <div class="tab-content" id="projectTabContent">
+                <!-- Tab 1: Project Info -->
+                <div class="tab-pane fade show active" id="projectInfo" role="tabpanel">
+                    <div class="form-group">
+                        <label for="projectName">Проект *</label>
+                        <input type="text" class="form-control-custom" id="projectName" required>
+                    </div>
 
-            <div class="form-group">
-                <label for="projectDescription">Описание</label>
-                <textarea class="form-control-custom" id="projectDescription"></textarea>
-            </div>
+                    <div class="form-group">
+                        <label for="projectDescription">Описание</label>
+                        <textarea class="form-control-custom" id="projectDescription"></textarea>
+                    </div>
 
-            <div class="form-group">
-                <label for="projectClient">Заказчик</label>
-                <select class="form-control-custom" id="projectClient">
-                    <option value="">Выберите заказчика</option>
-                </select>
-            </div>
+                    <div class="form-group">
+                        <label for="projectClient">Заказчик</label>
+                        <select class="form-control-custom" id="projectClient">
+                            <option value="">Выберите заказчика</option>
+                        </select>
+                    </div>
 
-            <div class="form-group">
-                <label for="projectStatus">Статус проекта</label>
-                <select class="form-control-custom" id="projectStatus">
-                    <option value="">Выберите статус</option>
-                </select>
-            </div>
+                    <div class="form-group">
+                        <label for="projectStatus">Статус проекта</label>
+                        <select class="form-control-custom" id="projectStatus">
+                            <option value="">Выберите статус</option>
+                        </select>
+                    </div>
 
-            <div class="form-group">
-                <label for="projectObject">Объект</label>
-                <select class="form-control-custom" id="projectObject">
-                    <option value="">Выберите объект</option>
-                </select>
-            </div>
+                    <div class="form-group">
+                        <label for="projectObject">Объект</label>
+                        <select class="form-control-custom" id="projectObject">
+                            <option value="">Выберите объект</option>
+                        </select>
+                    </div>
 
-            <div class="form-group">
-                <label for="projectStart">Старт</label>
-                <input type="date" class="form-control-custom" id="projectStart">
-            </div>
+                    <div class="form-group">
+                        <label for="projectStart">Старт</label>
+                        <input type="date" class="form-control-custom" id="projectStart">
+                    </div>
 
-            <div class="form-group">
-                <label for="projectDeadline">Срок</label>
-                <input type="date" class="form-control-custom" id="projectDeadline">
-            </div>
+                    <div class="form-group">
+                        <label for="projectDeadline">Срок</label>
+                        <input type="date" class="form-control-custom" id="projectDeadline">
+                    </div>
 
-            <div class="form-group">
-                <label for="projectBudget">Бюджет</label>
-                <input type="number" class="form-control-custom" id="projectBudget" step="0.01">
+                    <div class="form-group">
+                        <label for="projectBudget">Бюджет</label>
+                        <input type="number" class="form-control-custom" id="projectBudget" step="0.01">
+                    </div>
+                </div>
+
+                <!-- Tab 2: Products -->
+                <div class="tab-pane fade" id="projectProducts" role="tabpanel">
+                    <div class="form-group">
+                        <label>Добавить изделие</label>
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <input type="text" class="form-control-custom" id="productSearch" placeholder="Поиск изделия..." style="flex: 1;">
+                            <select class="form-control-custom" id="productSelect" style="flex: 2;">
+                                <option value="">Выберите изделие</option>
+                            </select>
+                            <button type="button" class="btn btn-primary" onclick="addProductToProject()">Добавить</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Изделия проекта</label>
+                        <input type="text" class="form-control-custom" id="projectProductSearch" placeholder="Поиск по списку изделий..." style="margin-bottom: 10px;" onkeyup="filterProjectProducts()">
+                        <div id="projectProductsList" style="border: 1px solid #dee2e6; border-radius: 4px; min-height: 200px; max-height: 400px; overflow-y: auto;">
+                            <!-- Project products will be loaded here -->
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="btn-group-custom">

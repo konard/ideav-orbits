@@ -41,6 +41,7 @@ function initProjectsWorkspace() {
     // Load all necessary data
     loadDictionaries();
     loadProjects();
+    loadAllProducts();
 }
 
 /**
@@ -841,6 +842,9 @@ function editProject() {
         document.getElementById('projectDeadline').value = formatDateForInput(selectedProject['Срок']);
     }
 
+    // Load project products
+    loadProjectProducts(selectedProject['ПроектID']);
+
     document.getElementById('projectModalBackdrop').classList.add('show');
 }
 
@@ -1543,3 +1547,347 @@ document.getElementById('cloneForm').addEventListener('submit', function(e) {
         alert('Ошибка при клонировании проекта');
     });
 });
+
+// ==================== PRODUCTS MANAGEMENT ====================
+
+// Global state for products
+let allProducts = [];
+let projectProducts = [];
+let draggedProductElement = null;
+
+/**
+ * Load all available products from dictionary
+ */
+function loadAllProducts() {
+    fetch(`https://${window.location.host}/${db}/report/6236?JSON_KV`)
+        .then(response => response.json())
+        .then(data => {
+            allProducts = data;
+            populateProductSelect();
+        })
+        .catch(error => console.error('Error loading all products:', error));
+}
+
+/**
+ * Load products for the current project
+ */
+function loadProjectProducts(projectId) {
+    if (!projectId) return;
+
+    fetch(`https://${window.location.host}/${db}/report/6247?JSON_KV&FR_ProjectID=${projectId}`)
+        .then(response => response.json())
+        .then(data => {
+            projectProducts = data;
+            displayProjectProducts();
+        })
+        .catch(error => console.error('Error loading project products:', error));
+}
+
+/**
+ * Populate the product select dropdown
+ */
+function populateProductSelect() {
+    const select = document.getElementById('productSelect');
+
+    // Clear existing options except the first one
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    // Add new options
+    allProducts.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product['ИзделиеID'];
+        option.textContent = `${product['Изделие']} (${product['Конструкций']})`;
+        option.dataset.name = product['Изделие'];
+        option.dataset.constructions = product['Конструкций'];
+        select.appendChild(option);
+    });
+}
+
+/**
+ * Filter product dropdown based on search input
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const productSearchInput = document.getElementById('productSearch');
+    if (productSearchInput) {
+        productSearchInput.addEventListener('keyup', function() {
+            const searchTerm = this.value.toLowerCase();
+            const select = document.getElementById('productSelect');
+
+            Array.from(select.options).forEach((option, index) => {
+                if (index === 0) return; // Skip first option
+
+                const text = option.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        });
+    }
+});
+
+/**
+ * Display project products list
+ */
+function displayProjectProducts() {
+    const productsList = document.getElementById('projectProductsList');
+
+    if (!projectProducts || projectProducts.length === 0) {
+        productsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #6c757d;">Изделия не добавлены</div>';
+        return;
+    }
+
+    // Sort by order
+    const sortedProducts = [...projectProducts].sort((a, b) => {
+        return (parseInt(a['ИзделияOrder']) || 0) - (parseInt(b['ИзделияOrder']) || 0);
+    });
+
+    // Build products list
+    productsList.innerHTML = sortedProducts.map(product => {
+        // Find product details from allProducts
+        const productDetails = allProducts.find(p => p['ИзделиеID'] === product['ИзделиеID']);
+        const productName = productDetails ? productDetails['Изделие'] : 'Unknown';
+        const constructions = productDetails ? productDetails['Конструкций'] : '0';
+
+        return `
+            <div class="product-item"
+                 draggable="true"
+                 data-product-id="${product['ИзделиеID']}"
+                 data-selection-id="${product['Строка Изделия']}"
+                 data-order="${product['ИзделияOrder']}">
+                <div class="product-content">
+                    <span class="drag-handle">☰</span>
+                    <span>${escapeHtml(productName)} (${constructions})</span>
+                </div>
+                <div class="product-actions">
+                    <button type="button" class="product-delete-btn" onclick="confirmDeleteProduct('${product['Строка Изделия']}', '${escapeHtml(productName)}')">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Add drag-and-drop handlers
+    addProductDragHandlers();
+}
+
+/**
+ * Filter displayed project products based on search
+ */
+function filterProjectProducts() {
+    const searchTerm = document.getElementById('projectProductSearch').value.toLowerCase();
+    const productItems = document.querySelectorAll('.product-item');
+
+    productItems.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+/**
+ * Add product to project
+ */
+function addProductToProject() {
+    const projectId = document.getElementById('projectId').value;
+    const productSelect = document.getElementById('productSelect');
+    const productId = productSelect.value;
+
+    if (!projectId) {
+        alert('Сначала сохраните проект');
+        return;
+    }
+
+    if (!productId) {
+        alert('Выберите изделие');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+    formData.append('t6154', productId);
+
+    const url = `https://${window.location.host}/${db}/_m_new/6152?JSON&up=${projectId}`;
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Product added:', data);
+
+        // Reload project products
+        loadProjectProducts(projectId);
+
+        // Reset selection
+        productSelect.value = '';
+        document.getElementById('productSearch').value = '';
+    })
+    .catch(error => {
+        console.error('Error adding product:', error);
+        alert('Ошибка при добавлении изделия');
+    });
+}
+
+/**
+ * Confirm product deletion
+ */
+function confirmDeleteProduct(selectionId, productName) {
+    if (confirm(`Вы уверены, что хотите удалить изделие "${productName}"?`)) {
+        deleteProduct(selectionId);
+    }
+}
+
+/**
+ * Delete product from project
+ */
+function deleteProduct(selectionId) {
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+
+    const url = `https://${window.location.host}/${db}/_m_del/${selectionId}?JSON`;
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Product deleted:', data);
+
+        // Reload project products
+        const projectId = document.getElementById('projectId').value;
+        loadProjectProducts(projectId);
+    })
+    .catch(error => {
+        console.error('Error deleting product:', error);
+        alert('Ошибка при удалении изделия');
+    });
+}
+
+/**
+ * Add drag-and-drop handlers to product items
+ */
+function addProductDragHandlers() {
+    const productItems = document.querySelectorAll('.product-item');
+
+    productItems.forEach(item => {
+        item.addEventListener('dragstart', handleProductDragStart);
+        item.addEventListener('dragover', handleProductDragOver);
+        item.addEventListener('drop', handleProductDrop);
+        item.addEventListener('dragend', handleProductDragEnd);
+    });
+}
+
+/**
+ * Handle drag start
+ */
+function handleProductDragStart(e) {
+    draggedProductElement = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+}
+
+/**
+ * Handle drag over
+ */
+function handleProductDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+
+    const afterElement = getDragAfterElement(document.getElementById('projectProductsList'), e.clientY);
+    const draggable = draggedProductElement;
+
+    if (afterElement == null) {
+        document.getElementById('projectProductsList').appendChild(draggable);
+    } else {
+        document.getElementById('projectProductsList').insertBefore(draggable, afterElement);
+    }
+
+    return false;
+}
+
+/**
+ * Handle drop
+ */
+function handleProductDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+
+    return false;
+}
+
+/**
+ * Handle drag end
+ */
+function handleProductDragEnd(e) {
+    this.classList.remove('dragging');
+
+    // Calculate new order
+    const productItems = Array.from(document.querySelectorAll('.product-item'));
+    const draggedIndex = productItems.indexOf(this);
+    const newOrder = draggedIndex + 1;
+
+    const selectionId = this.dataset.selectionId;
+
+    // Save the new order for the dragged element only (Issue #82 pattern)
+    saveProductOrder(selectionId, newOrder);
+}
+
+/**
+ * Get element after which the dragged element should be placed
+ */
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.product-item:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+/**
+ * Save product order (only for the dragged element - Issue #82 pattern)
+ */
+function saveProductOrder(selectionId, newOrder) {
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+    formData.append('order', newOrder);
+
+    const url = `https://${window.location.host}/${db}/_m_ord/${selectionId}?JSON`;
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Product order saved:', data);
+
+        // Reload project products to get updated order from backend
+        const projectId = document.getElementById('projectId').value;
+        loadProjectProducts(projectId);
+    })
+    .catch(error => {
+        console.error('Error saving product order:', error);
+        alert('Ошибка при сохранении порядка изделия');
+    });
+}
