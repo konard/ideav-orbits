@@ -718,8 +718,13 @@ function displayTasksAndOperations(data) {
         const operationCount = operations.length;
         const operationCountBubble = operationCount > 0 ? `<span class="operation-count-bubble">${operationCount}</span>` : '';
 
+        // Format numbers for display
+        const quantity = task['К-во'] ? parseFloat(task['К-во']) : 0;
+        const price = task['Цена за ед.'] ? parseFloat(task['Цена за ед.']) : 0;
+        const sum = task['Сумма'] ? parseFloat(task['Сумма']) : 0;
+
         let html = `
-            <div class="task-item ${isSelected}" draggable="${!deleteModeActive}" data-task-id="${taskId}" data-order="${task['Задача проектаOrder']}">
+            <div class="task-item ${isSelected}" draggable="${!deleteModeActive}" data-task-id="${taskId}" data-order="${task['Задача проектаOrder']}" data-quantity="${quantity}" data-price="${price}" data-sum="${sum}">
                 ${deleteCheckbox}
                 <span class="drag-handle" style="display: ${deleteModeActive ? 'none' : 'inline'}">☰</span>
                 <span class="chevron" style="display: ${deleteModeActive || operationCount === 0 ? 'none' : 'inline'}" onclick="toggleOperations('${taskId}')">></span>
@@ -728,6 +733,11 @@ function displayTasksAndOperations(data) {
                     <strong>${escapeHtml(task['Задача проекта'] || 'Без названия')}</strong>
                     ${task['Задача Описание'] ? '<br><small>' + escapeHtml(task['Задача Описание']) + '</small>' : ''}
                     ${task['Статус задачи'] ? '<br><small>Статус: ' + escapeHtml(task['Статус задачи']) + '</small>' : ''}
+                </div>
+                <div class="task-financial">
+                    <div class="task-quantity">${quantity > 0 ? quantity.toFixed(2) : ''}</div>
+                    <div class="task-price">${price > 0 ? price.toFixed(2) : ''}</div>
+                    <div class="task-sum">${sum > 0 ? sum.toFixed(2) : ''}</div>
                 </div>
                 <div class="task-actions">
                     ${operationCountBubble}
@@ -779,6 +789,39 @@ function displayTasksAndOperations(data) {
 
         return html;
     }).join('');
+
+    // Calculate totals
+    let totalQuantity = 0;
+    let totalSum = 0;
+    let taskCount = 0;
+
+    sortedTaskIds.forEach(taskId => {
+        const task = taskGroups[taskId].task;
+        const quantity = task['К-во'] ? parseFloat(task['К-во']) : 0;
+        const sum = task['Сумма'] ? parseFloat(task['Сумма']) : 0;
+
+        if (quantity > 0 || sum > 0) {
+            taskCount++;
+            totalQuantity += quantity;
+            totalSum += sum;
+        }
+    });
+
+    // Add total row
+    taskList.innerHTML += `
+        <div class="task-total-row">
+            <div class="task-total-label">Итого:</div>
+            <div class="task-total-content">
+                <div class="task-total-count">Задач: ${taskCount}</div>
+            </div>
+            <div class="task-total-financial">
+                <div class="task-total-quantity">${totalQuantity > 0 ? totalQuantity.toFixed(2) : ''}</div>
+                <div class="task-total-price"></div>
+                <div class="task-total-sum">${totalSum > 0 ? totalSum.toFixed(2) : ''}</div>
+            </div>
+            <div class="task-total-actions"></div>
+        </div>
+    `;
 
     // Update delete mode class on task list container
     if (deleteModeActive) {
