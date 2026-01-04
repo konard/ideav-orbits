@@ -704,7 +704,21 @@ function displayTasksAndOperations(data) {
         return orderA - orderB;
     });
 
-    taskList.innerHTML = sortedTaskIds.map((taskId, index) => {
+    // Add table header row
+    let headerHtml = `
+        <div class="task-header-row">
+            <span class="task-header-order">№</span>
+            <div class="task-header-content">Задача</div>
+            <div class="task-header-financial">
+                <div class="task-header-quantity">К-во</div>
+                <div class="task-header-price">Цена</div>
+                <div class="task-header-sum">Сумма</div>
+            </div>
+            <div class="task-header-actions"></div>
+        </div>
+    `;
+
+    taskList.innerHTML = headerHtml + sortedTaskIds.map((taskId, index) => {
         const group = taskGroups[taskId];
         const task = group.task;
         const operations = group.operations.sort((a, b) => {
