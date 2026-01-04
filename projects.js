@@ -1654,25 +1654,189 @@ function loadProjectProducts(projectId) {
 }
 
 /**
+ * SearchableSelect Component - Select2-style searchable dropdown
+ */
+class SearchableSelect {
+    constructor(containerId, options = {}) {
+        this.container = document.getElementById(containerId);
+        if (!this.container) {
+            console.error(`SearchableSelect: Container #${containerId} not found`);
+            return;
+        }
+
+        this.trigger = this.container.querySelector('.searchable-select-trigger');
+        this.dropdown = this.container.querySelector('.searchable-select-dropdown');
+        this.searchInput = this.container.querySelector('.searchable-select-search input');
+        this.optionsContainer = this.container.querySelector('.searchable-select-options');
+        this.hiddenInput = this.container.querySelector('input[type="hidden"]');
+        this.placeholder = this.trigger.querySelector('.placeholder');
+
+        this.data = [];
+        this.selectedValue = null;
+        this.selectedText = '';
+        this.onSelect = options.onSelect || null;
+
+        this.init();
+    }
+
+    init() {
+        // Toggle dropdown on trigger click
+        this.trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleDropdown();
+        });
+
+        // Search functionality
+        this.searchInput.addEventListener('input', () => {
+            this.filterOptions(this.searchInput.value);
+        });
+
+        // Close dropdown on outside click
+        document.addEventListener('click', (e) => {
+            if (!this.container.contains(e.target)) {
+                this.closeDropdown();
+            }
+        });
+
+        // Prevent dropdown from closing when clicking inside it
+        this.dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+
+    setData(data) {
+        this.data = data;
+        this.renderOptions();
+    }
+
+    renderOptions(searchTerm = '') {
+        this.optionsContainer.innerHTML = '';
+
+        const filteredData = searchTerm
+            ? this.data.filter(item =>
+                  item.text.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+            : this.data;
+
+        if (filteredData.length === 0) {
+            this.optionsContainer.innerHTML = `
+                <div class="searchable-select-no-results">
+                    Ничего не найдено
+                </div>
+            `;
+            return;
+        }
+
+        filteredData.forEach(item => {
+            const option = document.createElement('div');
+            option.className = 'searchable-select-option';
+            if (item.value === this.selectedValue) {
+                option.classList.add('selected');
+            }
+            option.dataset.value = item.value;
+
+            // Highlight matching text
+            if (searchTerm) {
+                const regex = new RegExp(`(${this.escapeRegex(searchTerm)})`, 'gi');
+                option.innerHTML = item.text.replace(regex, '<span class="highlight">$1</span>');
+            } else {
+                option.textContent = item.text;
+            }
+
+            option.addEventListener('click', () => {
+                this.selectOption(item.value, item.text);
+            });
+
+            this.optionsContainer.appendChild(option);
+        });
+    }
+
+    filterOptions(searchTerm) {
+        this.renderOptions(searchTerm);
+    }
+
+    selectOption(value, text) {
+        this.selectedValue = value;
+        this.selectedText = text;
+
+        // Update UI
+        this.placeholder.textContent = text;
+        this.placeholder.classList.remove('placeholder');
+        this.hiddenInput.value = value;
+
+        // Update selected state in options
+        this.optionsContainer.querySelectorAll('.searchable-select-option').forEach(opt => {
+            opt.classList.toggle('selected', opt.dataset.value === value);
+        });
+
+        // Close dropdown
+        this.closeDropdown();
+
+        // Call onSelect callback
+        if (this.onSelect) {
+            this.onSelect(value, text);
+        }
+    }
+
+    reset() {
+        this.selectedValue = null;
+        this.selectedText = '';
+        this.placeholder.textContent = 'Выберите изделие...';
+        this.placeholder.classList.add('placeholder');
+        this.hiddenInput.value = '';
+        this.searchInput.value = '';
+        this.renderOptions();
+    }
+
+    getValue() {
+        return this.selectedValue;
+    }
+
+    toggleDropdown() {
+        const isOpen = this.dropdown.classList.contains('show');
+        if (isOpen) {
+            this.closeDropdown();
+        } else {
+            this.openDropdown();
+        }
+    }
+
+    openDropdown() {
+        this.dropdown.classList.add('show');
+        this.trigger.classList.add('open');
+        this.searchInput.focus();
+        this.searchInput.value = '';
+        this.renderOptions();
+    }
+
+    closeDropdown() {
+        this.dropdown.classList.remove('show');
+        this.trigger.classList.remove('open');
+    }
+
+    escapeRegex(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+}
+
+// Global instance of product searchable select
+let productSearchableSelect = null;
+
+/**
  * Populate the product select dropdown
  */
 function populateProductSelect() {
-    const select = document.getElementById('productSelect');
-
-    // Clear existing options except the first one
-    while (select.options.length > 1) {
-        select.remove(1);
+    if (!productSearchableSelect) {
+        productSearchableSelect = new SearchableSelect('productSelectContainer');
     }
 
-    // Add new options
-    allProducts.forEach(product => {
-        const option = document.createElement('option');
-        option.value = product['ИзделиеID'];
-        option.textContent = `${product['Изделие']} (${product['Конструкций']})`;
-        option.dataset.name = product['Изделие'];
-        option.dataset.constructions = product['Конструкций'];
-        select.appendChild(option);
-    });
+    // Format data for searchable select
+    const data = allProducts.map(product => ({
+        value: product['ИзделиеID'],
+        text: `${product['Изделие']} (${product['Конструкций']})`
+    }));
+
+    productSearchableSelect.setData(data);
 }
 
 /**
@@ -1693,25 +1857,7 @@ $(document).ready(function() {
         $(this).tab('show');
     });
 
-    // Filter product dropdown based on search input
-    const productSearchInput = document.getElementById('productSearch');
-    if (productSearchInput) {
-        productSearchInput.addEventListener('keyup', function() {
-            const searchTerm = this.value.toLowerCase();
-            const select = document.getElementById('productSelect');
-
-            Array.from(select.options).forEach((option, index) => {
-                if (index === 0) return; // Skip first option
-
-                const text = option.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    option.style.display = '';
-                } else {
-                    option.style.display = 'none';
-                }
-            });
-        });
-    }
+    // Note: Product search is now handled by SearchableSelect component
 });
 
 /**
@@ -1782,8 +1928,7 @@ function filterProjectProducts() {
  */
 function addProductToProject() {
     const projectId = document.getElementById('projectId').value;
-    const productSelect = document.getElementById('productSelect');
-    const productId = productSelect.value;
+    const productId = productSearchableSelect ? productSearchableSelect.getValue() : null;
 
     if (!projectId) {
         alert('Сначала сохраните проект');
@@ -1813,8 +1958,9 @@ function addProductToProject() {
         loadProjectProducts(projectId);
 
         // Reset selection
-        productSelect.value = '';
-        document.getElementById('productSearch').value = '';
+        if (productSearchableSelect) {
+            productSearchableSelect.reset();
+        }
     })
     .catch(error => {
         console.error('Error adding product:', error);
