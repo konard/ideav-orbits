@@ -814,11 +814,10 @@ function displayTasksAndOperations(data) {
         const quantity = task['К-во'] ? parseFloat(task['К-во']) : 0;
         const sum = task['Сумма'] ? parseFloat(task['Сумма']) : 0;
 
-        if (quantity > 0 || sum > 0) {
-            taskCount++;
-            totalQuantity += quantity;
-            totalSum += sum;
-        }
+        // Always count tasks, regardless of whether they have quantities or sums
+        taskCount++;
+        totalQuantity += quantity;
+        totalSum += sum;
     });
 
     // Add total row
