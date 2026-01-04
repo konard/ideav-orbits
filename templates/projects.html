@@ -190,6 +190,10 @@
         display: none !important;
     }
 
+    .project-item.hidden-project {
+        display: none !important;
+    }
+
     .drag-handle {
         cursor: move;
         margin-right: 10px;
@@ -433,6 +437,7 @@
     <div class="task-section" id="taskSection">
         <div class="section-title">
             <span id="selectedProjectName"></span>
+            <button class="btn btn-sm btn-outline-secondary float-right" onclick="closeProjectView()" title="Закрыть" style="margin-left: 5px;">✖</button>
             <button class="btn btn-sm btn-outline-secondary float-right" onclick="editProject()">Редактировать проект</button>
             <button class="btn btn-sm btn-primary float-right" style="margin-right: 5px;" onclick="cloneProject()">Клонировать</button>
             <button class="btn btn-sm btn-warning float-right" style="margin-right: 5px;" id="toggleDeleteModeBtn" onclick="toggleDeleteMode()">Групповое удаление</button>

@@ -489,12 +489,43 @@ function selectProject(projectId) {
     selectedProject = allProjects.find(p => p['ПроектID'] === projectId);
     if (!selectedProject) return;
 
+    // Hide other projects - only show the selected one
+    document.querySelectorAll('.project-item').forEach(item => {
+        if (item.dataset.projectId !== projectId) {
+            item.classList.add('hidden-project');
+        } else {
+            item.classList.remove('hidden-project');
+        }
+    });
+
     // Update UI
     document.getElementById('selectedProjectName').textContent = selectedProject['Проект'];
     document.getElementById('taskSection').classList.add('active');
 
     // Load project details (tasks and operations)
     loadProjectDetails(projectId);
+}
+
+/**
+ * Close project view and show all projects
+ */
+function closeProjectView() {
+    // Hide task section
+    document.getElementById('taskSection').classList.remove('active');
+
+    // Show all projects again
+    document.querySelectorAll('.project-item').forEach(item => {
+        item.classList.remove('hidden-project');
+        item.classList.remove('active');
+    });
+
+    // Clear selected project
+    selectedProject = null;
+
+    // Exit delete mode if active
+    if (deleteModeActive) {
+        toggleDeleteMode();
+    }
 }
 
 /**
