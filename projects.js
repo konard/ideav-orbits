@@ -446,9 +446,26 @@ function filterTasksAndOperations() {
     const searchTerm = document.getElementById('taskSearch').value.toLowerCase();
 
     const filtered = projectDetails.filter(item => {
-        return Object.values(item).some(value =>
+        // Search in all item fields
+        const matchesInItem = Object.values(item).some(value =>
             value && value.toString().toLowerCase().includes(searchTerm)
         );
+
+        // For operations, also search in template's Direction and Work Type
+        if (item['ОперацияID'] && item['Операция (шаблон)ID']) {
+            const templateId = item['Операция (шаблон)ID'];
+            const template = dictionaries.operationTemplates.find(t => t['Операция (шаблон)ID'] === templateId);
+            if (template) {
+                const direction = template['Направление'] || '';
+                const workType = template['Вид работ'] || '';
+                const matchesInTemplate =
+                    direction.toLowerCase().includes(searchTerm) ||
+                    workType.toLowerCase().includes(searchTerm);
+                return matchesInItem || matchesInTemplate;
+            }
+        }
+
+        return matchesInItem;
     });
 
     displayTasksAndOperations(filtered);
@@ -569,13 +586,29 @@ function displayTasksAndOperations(data) {
                 const opDeleteCheckbox = deleteModeActive ? `<input type="checkbox" class="delete-checkbox" data-type="operation" data-id="${op['ОперацияID']}" onchange="toggleItemSelection(this)">` : '';
                 const opIsSelected = selectedItemsForDeletion.has(`operation-${op['ОперацияID']}`) ? 'selected' : '';
 
+                // Look up template to get Direction and Work Type
+                const templateId = op['Операция (шаблон)ID'];
+                const template = templateId ? dictionaries.operationTemplates.find(t => t['Операция (шаблон)ID'] === templateId) : null;
+                const direction = template ? template['Направление'] : '';
+                const workType = template ? template['Вид работ'] : '';
+
+                // Build direction and work type display (small gray text)
+                let directionWorkTypeHtml = '';
+                if (direction || workType) {
+                    const parts = [];
+                    if (direction) parts.push(escapeHtml(direction));
+                    if (workType) parts.push(escapeHtml(workType));
+                    directionWorkTypeHtml = `<br><small style="color: #6c757d;">${parts.join(', ')}</small>`;
+                }
+
                 html += `
-                    <div class="operation-item operations-hidden ${opIsSelected}" draggable="${!deleteModeActive}" data-operation-id="${op['ОперацияID']}" data-task-id="${taskId}" data-order="${op['ОперацияOrder']}">
+                    <div class="operation-item operations-hidden ${opIsSelected}" draggable="${!deleteModeActive}" data-operation-id="${op['ОперацияID']}" data-task-id="${taskId}" data-order="${op['ОперацияOrder']}" data-direction="${escapeHtml(direction || '')}" data-work-type="${escapeHtml(workType || '')}">
                         ${opDeleteCheckbox}
                         <span class="drag-handle" style="display: ${deleteModeActive ? 'none' : 'inline'}">☰</span>
                         <span class="operation-order">${opIndex + 1}</span>
                         <div class="operation-content">
                             ${escapeHtml(op['Операция'] || 'Без названия')}
+                            ${directionWorkTypeHtml}
                             ${op['Операция Начать'] ? '<br><small>Начать: ' + escapeHtml(op['Операция Начать']) + '</small>' : ''}
                             ${op['Операция Кол-во'] ? '<br><small>Кол-во: ' + escapeHtml(op['Операция Кол-во']) + ' ' + escapeHtml(op['Операция Ед.изм.'] || '') + '</small>' : ''}
                         </div>
