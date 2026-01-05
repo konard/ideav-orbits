@@ -536,14 +536,17 @@ function selectProject(projectId) {
     selectedProject = allProjects.find(p => p['ПроектID'] === projectId);
     if (!selectedProject) return;
 
-    // Hide other projects - only show the selected one
-    document.querySelectorAll('.project-item').forEach(item => {
-        if (item.dataset.projectId !== projectId) {
-            item.classList.add('hidden-project');
-        } else {
-            item.classList.remove('hidden-project');
-        }
-    });
+    // Hide the entire project list and controls
+    const projectList = document.getElementById('projectList');
+    if (projectList) {
+        projectList.style.display = 'none';
+    }
+
+    // Hide the controls row (search and add project button)
+    const controlsRow = document.querySelector('.project-list-container > .controls-row');
+    if (controlsRow) {
+        controlsRow.style.display = 'none';
+    }
 
     // Update UI
     document.getElementById('selectedProjectName').textContent = selectedProject['Проект'];
@@ -560,9 +563,20 @@ function closeProjectView() {
     // Hide task section
     document.getElementById('taskSection').classList.remove('active');
 
-    // Show all projects again
+    // Show the project list container
+    const projectList = document.getElementById('projectList');
+    if (projectList) {
+        projectList.style.display = '';
+    }
+
+    // Show the controls row (search and add project button)
+    const controlsRow = document.querySelector('.project-list-container > .controls-row');
+    if (controlsRow) {
+        controlsRow.style.display = '';
+    }
+
+    // Remove active class from all project items
     document.querySelectorAll('.project-item').forEach(item => {
-        item.classList.remove('hidden-project');
         item.classList.remove('active');
     });
 
