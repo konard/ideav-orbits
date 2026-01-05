@@ -143,14 +143,19 @@
         display: flex;
         gap: 15px;
         margin-right: 15px;
-        min-width: 300px;
+        min-width: 390px;
     }
 
-    .task-quantity, .task-price, .task-sum {
+    .task-quantity, .task-unit, .task-price, .task-sum {
         text-align: right;
         font-weight: 500;
         min-width: 90px;
         padding-right: 16px;
+    }
+
+    .task-unit {
+        text-align: left;
+        min-width: 80px;
     }
 
     /* Table header row */
@@ -181,15 +186,20 @@
         display: flex;
         gap: 15px;
         margin-right: 15px;
-        min-width: 300px;
+        min-width: 390px;
     }
 
-    .task-header-quantity, .task-header-price, .task-header-sum {
+    .task-header-quantity, .task-header-unit, .task-header-price, .task-header-sum {
         text-align: right;
         font-weight: bold;
         min-width: 90px;
         font-size: 14px;
         color: #495057;
+    }
+
+    .task-header-unit {
+        text-align: left;
+        min-width: 80px;
     }
 
     .task-header-actions {
@@ -226,14 +236,19 @@
         display: flex;
         gap: 15px;
         margin-right: 10px;
-        min-width: 300px;
+        min-width: 390px;
     }
 
-    .task-total-quantity, .task-total-price, .task-total-sum {
+    .task-total-quantity, .task-total-unit, .task-total-price, .task-total-sum {
         text-align: right;
         font-weight: bold;
         min-width: 90px;
         font-size: 15px;
+    }
+
+    .task-total-unit {
+        text-align: left;
+        min-width: 80px;
     }
 
     .task-total-actions {

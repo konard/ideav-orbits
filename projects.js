@@ -715,6 +715,7 @@ function displayTasksAndOperations(data) {
             <div class="task-header-content">Задача</div>
             <div class="task-header-financial">
                 <div class="task-header-quantity">К-во</div>
+                <div class="task-header-unit">Ед. изм.</div>
                 <div class="task-header-price">Цена</div>
                 <div class="task-header-sum">Сумма</div>
             </div>
@@ -740,6 +741,7 @@ function displayTasksAndOperations(data) {
         const quantity = task['К-во'] ? parseFloat(task['К-во']) : 0;
         const price = task['Цена за ед.'] ? parseFloat(task['Цена за ед.']) : 0;
         const sum = task['Сумма'] ? parseFloat(task['Сумма']) : 0;
+        const unit = task['Задача Ед.изм.'] || '';
 
         let html = `
             <div class="task-item ${isSelected}" draggable="${!deleteModeActive}" data-task-id="${taskId}" data-order="${task['Задача проектаOrder']}" data-quantity="${quantity}" data-price="${price}" data-sum="${sum}">
@@ -754,6 +756,7 @@ function displayTasksAndOperations(data) {
                 </div>
                 <div class="task-financial">
                     <div class="task-quantity">${quantity > 0 ? quantity.toFixed(2) : ''}</div>
+                    <div class="task-unit">${escapeHtml(unit)}</div>
                     <div class="task-price">${price > 0 ? price.toFixed(2) : ''}</div>
                     <div class="task-sum">${sum > 0 ? sum.toFixed(2) : ''}</div>
                 </div>
@@ -809,18 +812,15 @@ function displayTasksAndOperations(data) {
     }).join('');
 
     // Calculate totals
-    let totalQuantity = 0;
     let totalSum = 0;
     let taskCount = 0;
 
     sortedTaskIds.forEach(taskId => {
         const task = taskGroups[taskId].task;
-        const quantity = task['К-во'] ? parseFloat(task['К-во']) : 0;
         const sum = task['Сумма'] ? parseFloat(task['Сумма']) : 0;
 
         // Always count tasks, regardless of whether they have quantities or sums
         taskCount++;
-        totalQuantity += quantity;
         totalSum += sum;
     });
 
@@ -832,7 +832,8 @@ function displayTasksAndOperations(data) {
                 <div class="task-total-count">Задач: ${taskCount}</div>
             </div>
             <div class="task-total-financial">
-                <div class="task-total-quantity">${totalQuantity > 0 ? totalQuantity.toFixed(2) : ''}</div>
+                <div class="task-total-quantity"></div>
+                <div class="task-total-unit"></div>
                 <div class="task-total-price"></div>
                 <div class="task-total-sum">${totalSum > 0 ? totalSum.toFixed(2) : ''}</div>
             </div>
