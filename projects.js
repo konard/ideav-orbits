@@ -420,7 +420,7 @@ function displayProjects(projects) {
                 <span>Объект: ${escapeHtml(project['Объект'] || '—')}</span> |
                 <span>Статус: ${escapeHtml(project['Статус проекта'] || '—')}</span>
             </div>
-            <a href="report/6503?FR_ProjectID=${project['ПроектID']}"
+            <a href="smartq/6503?FR_ProjectID=${project['ПроектID']}"
                target="items"
                class="project-products-link"
                onclick="event.stopPropagation()">Изделия</a>
