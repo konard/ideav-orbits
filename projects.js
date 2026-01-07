@@ -2776,28 +2776,43 @@ async function updateEstimateField(estimateId, fieldName, value) {
  */
 async function saveEstimateRow(estimateId) {
     const item = estimateData.find(e => e['СметаID'] === estimateId);
-    if (!item || !estimateMetadata) return;
+    if (!item) return;
 
     try {
-        // Build form data according to metadata
         const formData = new FormData();
 
         // Add XSRF token
         formData.append('_xsrf', xsrf);
 
-        // Add fields from metadata
-        if (estimateMetadata.reqs) {
-            estimateMetadata.reqs.forEach(req => {
-                const fieldName = req.val;
-                const fieldId = req.id;
-                const value = item[fieldName] || '';
+        // Add required fields according to API specification:
+        // t6626 = Смета (estimate item name / work name)
+        formData.append('t6626', item['Смета'] || '');
 
-                formData.append(`t${fieldId}`, value);
-            });
+        // t6629 = Ед.изм.ID (unit of measurement ID)
+        // The field might contain either the unit ID or the unit name depending on the source
+        let unitId = '';
+        const unitValue = item['Ед.изм.'];
+        if (unitValue && dictionaries.units) {
+            // Check if it's already an ID (numeric) or a name (string)
+            const existingUnit = dictionaries.units.find(u => u['Ед.изм.ID'] == unitValue);
+            if (existingUnit) {
+                // It's an ID
+                unitId = unitValue;
+            } else {
+                // It's a name, find the ID
+                const unitByName = dictionaries.units.find(u => u['Ед.изм.'] === unitValue);
+                if (unitByName) {
+                    unitId = unitByName['Ед.изм.ID'];
+                }
+            }
         }
+        formData.append('t6629', unitId);
 
-        // Also save the main field (Смета)
-        formData.append(`t${estimateMetadata.id}`, item['Смета'] || '');
+        // t6628 = К-во (quantity)
+        formData.append('t6628', item['К-во'] || '');
+
+        // t6630 = Цена за ед. (price per unit)
+        formData.append('t6630', item['Цена за ед.'] || '');
 
         const response = await fetch(`https://${window.location.host}/${db}/_m_save/${estimateId}?JSON`, {
             method: 'POST',
@@ -2818,7 +2833,7 @@ async function saveEstimateRow(estimateId) {
  * Create estimate row in database (for new unsaved rows)
  */
 async function createEstimateRowInDB(tempId, item) {
-    if (!selectedProject || !estimateMetadata) return;
+    if (!selectedProject) return;
 
     const projectId = selectedProject['ПроектID'];
 
@@ -2828,17 +2843,35 @@ async function createEstimateRowInDB(tempId, item) {
         // Add XSRF token
         formData.append('_xsrf', xsrf);
 
-        // Set the main field (Смета / Work Name)
-        formData.append(`t${estimateMetadata.id}`, item['Смета'] || '');
+        // Add required fields according to API specification:
+        // t6626 = Смета (estimate item name / work name)
+        formData.append('t6626', item['Смета'] || '');
 
-        // Add other fields from metadata
-        if (estimateMetadata.reqs) {
-            estimateMetadata.reqs.forEach(req => {
-                const fieldName = req.val;
-                const value = item[fieldName] || '';
-                formData.append(`t${req.id}`, value);
-            });
+        // t6629 = Ед.изм.ID (unit of measurement ID)
+        // The field might contain either the unit ID or the unit name depending on the source
+        let unitId = '';
+        const unitValue = item['Ед.изм.'];
+        if (unitValue && dictionaries.units) {
+            // Check if it's already an ID (numeric) or a name (string)
+            const existingUnit = dictionaries.units.find(u => u['Ед.изм.ID'] == unitValue);
+            if (existingUnit) {
+                // It's an ID
+                unitId = unitValue;
+            } else {
+                // It's a name, find the ID
+                const unitByName = dictionaries.units.find(u => u['Ед.изм.'] === unitValue);
+                if (unitByName) {
+                    unitId = unitByName['Ед.изм.ID'];
+                }
+            }
         }
+        formData.append('t6629', unitId);
+
+        // t6628 = К-во (quantity)
+        formData.append('t6628', item['К-во'] || '');
+
+        // t6630 = Цена за ед. (price per unit)
+        formData.append('t6630', item['Цена за ед.'] || '');
 
         const response = await fetch(`https://${window.location.host}/${db}/_m_new/6626?JSON&up=${projectId}`, {
             method: 'POST',
@@ -2873,26 +2906,17 @@ async function createEstimateRowInDB(tempId, item) {
  * Creates empty row in UI only, DB save happens when Work Name is edited
  */
 function addEstimateRow() {
-    if (!selectedProject || !estimateMetadata) return;
+    if (!selectedProject) return;
 
     // Create a temporary row with a unique temp ID
     const tempId = `temp_${Date.now()}`;
     const newRow = {
         'СметаID': tempId,
-        'Смета': '',
-        'К-во': '',
-        'Цена за ед.': '',
-        'Ед.изм.': ''
+        'Смета': '',           // t6626
+        'К-во': '',            // t6628
+        'Цена за ед.': '',     // t6630
+        'Ед.изм.': ''          // t6629 (will be unit ID when selected)
     };
-
-    // Add any metadata required fields with empty values
-    if (estimateMetadata.reqs) {
-        estimateMetadata.reqs.forEach(req => {
-            if (!newRow[req.val]) {
-                newRow[req.val] = '';
-            }
-        });
-    }
 
     // Add to local data
     estimateData.push(newRow);
