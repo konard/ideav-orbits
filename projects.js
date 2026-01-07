@@ -2902,6 +2902,12 @@ async function saveEstimateRow(estimateId) {
     const item = estimateData.find(e => e['СметаID'] === estimateId);
     if (!item) return;
 
+    // If this is a temporary row (no real ID yet), use _m_new instead
+    if (estimateId.startsWith('temp_')) {
+        await createEstimateRowInDB(estimateId, item);
+        return;
+    }
+
     try {
         const formData = new FormData();
 
@@ -3300,6 +3306,12 @@ async function createConstructionRowInDB(tempId, item) {
 async function saveConstructionRow(constructionId) {
     const item = constructionsData.find(c => c['КонструкцияID'] === constructionId);
     if (!item) return;
+
+    // If this is a temporary row (no real ID yet), use _m_new instead
+    if (constructionId.startsWith('temp_')) {
+        await createConstructionRowInDB(constructionId, item);
+        return;
+    }
 
     try {
         const formData = new FormData();
