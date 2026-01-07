@@ -68,24 +68,6 @@
         color: #6c757d;
     }
 
-    .project-products-link {
-        position: absolute;
-        bottom: 10px;
-        right: 15px;
-        font-size: 12px;
-        color: #007bff;
-        text-decoration: none;
-        padding: 2px 6px;
-        border-radius: 3px;
-        transition: background-color 0.2s, color 0.2s;
-    }
-
-    .project-products-link:hover {
-        background-color: #007bff;
-        color: white;
-        text-decoration: none;
-    }
-
     .btn-add-project {
         white-space: nowrap;
     }
@@ -368,52 +350,6 @@
         100% { transform: rotate(360deg); }
     }
 
-    .product-item {
-        padding: 12px;
-        border-bottom: 1px solid #dee2e6;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background-color: #fff;
-        cursor: move;
-    }
-
-    .product-item:last-child {
-        border-bottom: none;
-    }
-
-    .product-item:hover {
-        background-color: #f8f9fa;
-    }
-
-    .product-item.dragging {
-        opacity: 0.5;
-    }
-
-    .product-content {
-        flex-grow: 1;
-        display: flex;
-        align-items: center;
-    }
-
-    .product-actions {
-        display: flex;
-        gap: 5px;
-    }
-
-    .product-delete-btn {
-        background: none;
-        border: none;
-        color: #dc3545;
-        cursor: pointer;
-        font-size: 18px;
-        padding: 0 8px;
-    }
-
-    .product-delete-btn:hover {
-        color: #c82333;
-    }
-
     .chevron {
         cursor: pointer;
         margin-right: 10px;
@@ -441,126 +377,6 @@
 
     .operations-hidden {
         display: none;
-    }
-
-    /* Searchable Select Styles (select2-style) */
-    .searchable-select-container {
-        position: relative;
-        flex: 2;
-    }
-
-    .searchable-select-trigger {
-        width: 100%;
-        padding: 8px 30px 8px 12px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        background-color: white;
-        cursor: pointer;
-        font-size: 14px;
-        text-align: left;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .searchable-select-trigger:hover {
-        border-color: #80bdff;
-    }
-
-    .searchable-select-trigger.open {
-        border-color: #80bdff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
-
-    .searchable-select-trigger .placeholder {
-        color: #6c757d;
-    }
-
-    .searchable-select-trigger .arrow {
-        position: absolute;
-        right: 12px;
-        pointer-events: none;
-        color: #6c757d;
-    }
-
-    .searchable-select-dropdown {
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
-        background: white;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        z-index: 1000;
-        max-height: 400px;
-        display: none;
-    }
-
-    .searchable-select-dropdown.show {
-        display: block;
-    }
-
-    .searchable-select-search {
-        padding: 8px;
-        border-bottom: 1px solid #dee2e6;
-    }
-
-    .searchable-select-search input {
-        width: 100%;
-        padding: 6px 10px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        font-size: 14px;
-        outline: none;
-    }
-
-    .searchable-select-search input:focus {
-        border-color: #80bdff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
-
-    .searchable-select-options {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-
-    .searchable-select-option {
-        padding: 10px 12px;
-        cursor: pointer;
-        font-size: 14px;
-        border-bottom: 1px solid #f8f9fa;
-    }
-
-    .searchable-select-option:last-child {
-        border-bottom: none;
-    }
-
-    .searchable-select-option:hover {
-        background-color: #f8f9fa;
-    }
-
-    .searchable-select-option.selected {
-        background-color: #e7f3ff;
-        color: #007bff;
-        font-weight: 500;
-    }
-
-    .searchable-select-option.hidden {
-        display: none;
-    }
-
-    .searchable-select-option .highlight {
-        background-color: #fff3cd;
-        font-weight: 600;
-    }
-
-    .searchable-select-no-results {
-        padding: 20px;
-        text-align: center;
-        color: #6c757d;
-        font-size: 14px;
     }
 </style>
 
@@ -620,102 +436,48 @@
     <div class="modal-dialog-custom" onclick="event.stopPropagation()">
         <h5 id="projectModalTitle">Добавить проект</h5>
 
-        <!-- Tabs Navigation -->
-        <ul class="nav nav-tabs" id="projectTabs" role="tablist" style="margin-bottom: 20px;">
-            <li class="nav-item">
-                <a class="nav-link active" id="projectInfo-tab" data-toggle="tab" href="#projectInfo" role="tab">Проект</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" id="projectProducts-tab" data-toggle="tab" href="#projectProducts" role="tab">Конструкции</a>
-            </li>
-        </ul>
+        <!-- Tabs removed - single form view only -->
 
         <form id="projectForm">
             <input type="hidden" id="projectId">
 
-            <!-- Tab Content -->
-            <div class="tab-content" id="projectTabContent">
-                <!-- Tab 1: Project Info -->
-                <div class="tab-pane fade show active" id="projectInfo" role="tabpanel">
-                    <div class="form-group">
-                        <label for="projectName">Проект *</label>
-                        <input type="text" class="form-control-custom" id="projectName" required>
-                    </div>
+            <div class="form-group">
+                <label for="projectName">Проект *</label>
+                <input type="text" class="form-control-custom" id="projectName" required>
+            </div>
 
-                    <div class="form-group">
-                        <label for="projectDescription">Описание</label>
-                        <textarea class="form-control-custom" id="projectDescription"></textarea>
-                    </div>
+            <div class="form-group">
+                <label for="projectDescription">Описание</label>
+                <textarea class="form-control-custom" id="projectDescription"></textarea>
+            </div>
 
-                    <div class="form-group">
-                        <label for="projectClient">Заказчик</label>
-                        <select class="form-control-custom" id="projectClient">
-                            <option value="">Выберите заказчика</option>
-                        </select>
-                    </div>
+            <div class="form-group">
+                <label for="projectClient">Заказчик</label>
+                <select class="form-control-custom" id="projectClient">
+                    <option value="">Выберите заказчика</option>
+                </select>
+            </div>
 
-                    <div class="form-group">
-                        <label for="projectStatus">Статус проекта</label>
-                        <select class="form-control-custom" id="projectStatus">
-                            <option value="">Выберите статус</option>
-                        </select>
-                    </div>
+            <div class="form-group">
+                <label for="projectObject">Объект</label>
+                <select class="form-control-custom" id="projectObject">
+                    <option value="">Выберите объект</option>
+                </select>
+            </div>
 
-                    <div class="form-group">
-                        <label for="projectObject">Объект</label>
-                        <select class="form-control-custom" id="projectObject">
-                            <option value="">Выберите объект</option>
-                        </select>
-                    </div>
+            <div class="form-group">
+                <label for="projectStart">Старт *</label>
+                <input type="date" class="form-control-custom" id="projectStart" required>
+            </div>
 
-                    <div class="form-group">
-                        <label for="projectStart">Старт</label>
-                        <input type="date" class="form-control-custom" id="projectStart">
-                    </div>
+            <div class="form-group">
+                <label for="projectDuration">Срок (календарных дней)</label>
+                <input type="number" class="form-control-custom" id="projectDuration" min="1" step="1">
+            </div>
 
-                    <div class="form-group">
-                        <label for="projectDeadline">Срок</label>
-                        <input type="date" class="form-control-custom" id="projectDeadline">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="projectBudget">Бюджет</label>
-                        <input type="number" class="form-control-custom" id="projectBudget" step="0.01">
-                    </div>
-                </div>
-
-                <!-- Tab 2: Products -->
-                <div class="tab-pane fade" id="projectProducts" role="tabpanel">
-                    <div class="form-group">
-                        <label>Добавить изделие</label>
-                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                            <div class="searchable-select-container" id="productSelectContainer">
-                                <div class="searchable-select-trigger" id="productSelectTrigger">
-                                    <span class="placeholder">Выберите изделие...</span>
-                                    <span class="arrow">▼</span>
-                                </div>
-                                <div class="searchable-select-dropdown" id="productSelectDropdown">
-                                    <div class="searchable-select-search">
-                                        <input type="text" placeholder="Поиск изделия..." id="productSearchInput">
-                                    </div>
-                                    <div class="searchable-select-options" id="productSelectOptions">
-                                        <!-- Options will be populated here -->
-                                    </div>
-                                </div>
-                                <input type="hidden" id="productSelectValue">
-                            </div>
-                            <button type="button" class="btn btn-primary" onclick="addProductToProject()">Добавить</button>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Конструкции проекта</label>
-                        <input type="text" class="form-control-custom" id="projectProductSearch" placeholder="Поиск по списку изделий..." style="margin-bottom: 10px;" onkeyup="filterProjectProducts()">
-                        <div id="projectProductsList" style="border: 1px solid #dee2e6; border-radius: 4px; min-height: 200px; max-height: 400px; overflow-y: auto;">
-                            <!-- Project products will be loaded here -->
-                        </div>
-                    </div>
-                </div>
+            <div class="form-group">
+                <label for="projectDeadline">Окончание</label>
+                <input type="date" class="form-control-custom" id="projectDeadline">
             </div>
 
             <div class="btn-group-custom">

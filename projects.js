@@ -41,7 +41,96 @@ function initProjectsWorkspace() {
     // Load all necessary data
     loadDictionaries();
     loadProjects();
-    loadAllProducts();
+
+    // Initialize duration calculation listeners
+    initializeDurationCalculation();
+}
+
+/**
+ * Initialize duration calculation event listeners
+ * Duration and End Date are mutually calculated fields
+ * Only End Date is stored in the database
+ */
+function initializeDurationCalculation() {
+    // Wait for DOM to be ready, then attach event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        attachDurationListeners();
+    });
+
+    // Also try to attach immediately in case DOM is already loaded
+    attachDurationListeners();
+}
+
+/**
+ * Attach event listeners for duration calculation
+ */
+function attachDurationListeners() {
+    const startDateInput = document.getElementById('projectStart');
+    const durationInput = document.getElementById('projectDuration');
+    const deadlineInput = document.getElementById('projectDeadline');
+
+    if (startDateInput && durationInput && deadlineInput) {
+        // When Start Date or Duration changes, calculate End Date
+        startDateInput.addEventListener('change', function() {
+            calculateEndDateFromDuration();
+        });
+
+        durationInput.addEventListener('input', function() {
+            calculateEndDateFromDuration();
+        });
+
+        // When End Date changes, calculate Duration
+        deadlineInput.addEventListener('change', function() {
+            calculateDurationFromEndDate();
+        });
+    }
+}
+
+/**
+ * Calculate End Date from Start Date + Duration
+ */
+function calculateEndDateFromDuration() {
+    const startDateInput = document.getElementById('projectStart');
+    const durationInput = document.getElementById('projectDuration');
+    const deadlineInput = document.getElementById('projectDeadline');
+
+    const startDate = startDateInput?.value;
+    const duration = parseInt(durationInput?.value);
+
+    if (startDate && duration && duration > 0) {
+        const start = new Date(startDate);
+        const end = new Date(start);
+        end.setDate(end.getDate() + duration);
+
+        // Format as YYYY-MM-DD for date input
+        const formattedDate = end.toISOString().split('T')[0];
+        deadlineInput.value = formattedDate;
+    }
+}
+
+/**
+ * Calculate Duration from Start Date and End Date
+ */
+function calculateDurationFromEndDate() {
+    const startDateInput = document.getElementById('projectStart');
+    const durationInput = document.getElementById('projectDuration');
+    const deadlineInput = document.getElementById('projectDeadline');
+
+    const startDate = startDateInput?.value;
+    const endDate = deadlineInput?.value;
+
+    if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        // Calculate difference in days
+        const diffTime = end - start;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays >= 0) {
+            durationInput.value = diffDays;
+        }
+    }
 }
 
 /**
@@ -77,14 +166,7 @@ function loadDictionaries() {
         })
         .catch(error => console.error('Error loading operation templates:', error));
 
-    // Load project statuses (Статусы проекта)
-    fetch(`https://${window.location.host}/${db}/report/6052?JSON_KV`)
-        .then(response => response.json())
-        .then(data => {
-            dictionaries.projectStatuses = data;
-            populateSelect('projectStatus', data, 'Статус проекта', 'Статус проектаID');
-        })
-        .catch(error => console.error('Error loading project statuses:', error));
+    // Project statuses removed per issue #158
 
     // Load task statuses (Статусы задачи)
     fetch(`https://${window.location.host}/${db}/report/6058?JSON_KV`)
@@ -416,14 +498,9 @@ function displayProjects(projects) {
             <div class="project-meta">
                 <span>Заказчик: ${escapeHtml(project['Заказчик'] || '—')}</span> |
                 <span>Старт: ${escapeHtml(project['Старт'] || '—')}</span> |
-                <span>Срок: ${escapeHtml(project['Срок'] || '—')}</span> |
-                <span>Объект: ${escapeHtml(project['Объект'] || '—')}</span> |
-                <span>Статус: ${escapeHtml(project['Статус проекта'] || '—')}</span>
+                <span>Окончание: ${escapeHtml(project['Срок'] || '—')}</span> |
+                <span>Объект: ${escapeHtml(project['Объект'] || '—')}</span>
             </div>
-            <a href="smartq/6503?FR_ProjectID=${project['ПроектID']}"
-               target="items"
-               class="project-products-link"
-               onclick="event.stopPropagation()">Изделия</a>
         </div>
     `).join('');
 }
@@ -1204,8 +1281,8 @@ function showAddProjectModal() {
     document.getElementById('projectForm').reset();
     document.getElementById('projectId').value = '';
 
-    // Show the first tab by default
-    $('#projectInfo-tab').tab('show');
+    // Re-attach event listeners for duration calculation (modal was just opened)
+    setTimeout(attachDurationListeners, 100);
 
     document.getElementById('projectModalBackdrop').classList.add('show');
 }
@@ -1237,15 +1314,6 @@ function editProject() {
         clientSelect.value = clientOption.value;
     }
 
-    // Set status if available
-    const statusSelect = document.getElementById('projectStatus');
-    const statusOption = Array.from(statusSelect.options).find(opt =>
-        opt.textContent === selectedProject['Статус проекта']
-    );
-    if (statusOption) {
-        statusSelect.value = statusOption.value;
-    }
-
     // Set object if available
     const objectSelect = document.getElementById('projectObject');
     const objectOption = Array.from(objectSelect.options).find(opt =>
@@ -1263,11 +1331,13 @@ function editProject() {
         document.getElementById('projectDeadline').value = formatDateForInput(selectedProject['Срок']);
     }
 
-    // Load project products
-    loadProjectProducts(selectedProject['ПроектID']);
+    // Calculate duration from start and end dates
+    if (selectedProject['Старт'] && selectedProject['Срок']) {
+        calculateDurationFromEndDate();
+    }
 
-    // Show the first tab by default
-    $('#projectInfo-tab').tab('show');
+    // Re-attach event listeners for duration calculation (modal was just opened)
+    setTimeout(attachDurationListeners, 100);
 
     document.getElementById('projectModalBackdrop').classList.add('show');
 }
@@ -1450,6 +1520,7 @@ function editOperation(operationId) {
 
 /**
  * Handle project form submission
+ * Note: Only End Date is stored in the database (Duration is calculated field)
  */
 document.getElementById('projectForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -1460,11 +1531,10 @@ document.getElementById('projectForm').addEventListener('submit', function(e) {
     formData.append('t663', document.getElementById('projectName').value);
     formData.append('t664', document.getElementById('projectDescription').value);
     formData.append('t667', document.getElementById('projectClient').value);
-    formData.append('t670', document.getElementById('projectStatus').value);
     formData.append('t717', document.getElementById('projectObject').value);
     formData.append('t672', document.getElementById('projectStart').value);
     formData.append('t674', document.getElementById('projectDeadline').value);
-    formData.append('t677', document.getElementById('projectBudget').value);
+    // Note: t670 (Project Status) and t677 (Budget) fields removed per issue #158
 
     const url = projectId ?
         `https://${window.location.host}/${db}/_m_save/${projectId}?JSON` :
@@ -1972,507 +2042,3 @@ document.getElementById('cloneForm').addEventListener('submit', function(e) {
     });
 });
 
-// ==================== PRODUCTS MANAGEMENT ====================
-
-// Global state for products
-let allProducts = [];
-let projectProducts = [];
-let draggedProductElement = null;
-
-/**
- * Load all available products from dictionary
- */
-function loadAllProducts() {
-    fetch(`https://${window.location.host}/${db}/report/6236?JSON_KV`)
-        .then(response => response.json())
-        .then(data => {
-            allProducts = data;
-            populateProductSelect();
-        })
-        .catch(error => console.error('Error loading all products:', error));
-}
-
-/**
- * Load products for the current project
- */
-function loadProjectProducts(projectId) {
-    if (!projectId) return;
-
-    fetch(`https://${window.location.host}/${db}/report/6247?JSON_KV&FR_ProjectID=${projectId}`)
-        .then(response => response.json())
-        .then(data => {
-            projectProducts = data;
-            displayProjectProducts();
-        })
-        .catch(error => console.error('Error loading project products:', error));
-}
-
-/**
- * SearchableSelect Component - Select2-style searchable dropdown
- */
-class SearchableSelect {
-    constructor(containerId, options = {}) {
-        this.container = document.getElementById(containerId);
-        if (!this.container) {
-            console.error(`SearchableSelect: Container #${containerId} not found`);
-            return;
-        }
-
-        this.trigger = this.container.querySelector('.searchable-select-trigger');
-        this.dropdown = this.container.querySelector('.searchable-select-dropdown');
-        this.searchInput = this.container.querySelector('.searchable-select-search input');
-        this.optionsContainer = this.container.querySelector('.searchable-select-options');
-        this.hiddenInput = this.container.querySelector('input[type="hidden"]');
-        this.placeholder = this.trigger.querySelector('.placeholder');
-
-        this.data = [];
-        this.selectedValue = null;
-        this.selectedText = '';
-        this.onSelect = options.onSelect || null;
-
-        this.init();
-    }
-
-    init() {
-        // Toggle dropdown on trigger click
-        this.trigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.toggleDropdown();
-        });
-
-        // Search functionality
-        this.searchInput.addEventListener('input', () => {
-            this.filterOptions(this.searchInput.value);
-        });
-
-        // Close dropdown on outside click
-        document.addEventListener('click', (e) => {
-            if (!this.container.contains(e.target)) {
-                this.closeDropdown();
-            }
-        });
-
-        // Prevent dropdown from closing when clicking inside it
-        this.dropdown.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-    }
-
-    setData(data) {
-        this.data = data;
-        this.renderOptions();
-    }
-
-    renderOptions(searchTerm = '') {
-        this.optionsContainer.innerHTML = '';
-
-        const filteredData = searchTerm
-            ? this.data.filter(item =>
-                  item.text.toLowerCase().includes(searchTerm.toLowerCase())
-              )
-            : this.data;
-
-        if (filteredData.length === 0) {
-            this.optionsContainer.innerHTML = `
-                <div class="searchable-select-no-results">
-                    Ничего не найдено
-                </div>
-            `;
-            return;
-        }
-
-        filteredData.forEach(item => {
-            const option = document.createElement('div');
-            option.className = 'searchable-select-option';
-            if (item.value === this.selectedValue) {
-                option.classList.add('selected');
-            }
-            option.dataset.value = item.value;
-
-            // Highlight matching text
-            if (searchTerm) {
-                const regex = new RegExp(`(${this.escapeRegex(searchTerm)})`, 'gi');
-                option.innerHTML = item.text.replace(regex, '<span class="highlight">$1</span>');
-            } else {
-                option.textContent = item.text;
-            }
-
-            option.addEventListener('click', () => {
-                this.selectOption(item.value, item.text);
-            });
-
-            this.optionsContainer.appendChild(option);
-        });
-    }
-
-    filterOptions(searchTerm) {
-        this.renderOptions(searchTerm);
-    }
-
-    selectOption(value, text) {
-        this.selectedValue = value;
-        this.selectedText = text;
-
-        // Update UI
-        this.placeholder.textContent = text;
-        this.placeholder.classList.remove('placeholder');
-        this.hiddenInput.value = value;
-
-        // Update selected state in options
-        this.optionsContainer.querySelectorAll('.searchable-select-option').forEach(opt => {
-            opt.classList.toggle('selected', opt.dataset.value === value);
-        });
-
-        // Close dropdown
-        this.closeDropdown();
-
-        // Call onSelect callback
-        if (this.onSelect) {
-            this.onSelect(value, text);
-        }
-    }
-
-    reset() {
-        this.selectedValue = null;
-        this.selectedText = '';
-        this.placeholder.textContent = 'Выберите изделие...';
-        this.placeholder.classList.add('placeholder');
-        this.hiddenInput.value = '';
-        this.searchInput.value = '';
-        this.renderOptions();
-    }
-
-    getValue() {
-        return this.selectedValue;
-    }
-
-    toggleDropdown() {
-        const isOpen = this.dropdown.classList.contains('show');
-        if (isOpen) {
-            this.closeDropdown();
-        } else {
-            this.openDropdown();
-        }
-    }
-
-    openDropdown() {
-        this.dropdown.classList.add('show');
-        this.trigger.classList.add('open');
-        this.searchInput.focus();
-        this.searchInput.value = '';
-        this.renderOptions();
-    }
-
-    closeDropdown() {
-        this.dropdown.classList.remove('show');
-        this.trigger.classList.remove('open');
-    }
-
-    escapeRegex(str) {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-}
-
-// Global instance of product searchable select
-let productSearchableSelect = null;
-
-/**
- * Populate the product select dropdown
- */
-function populateProductSelect() {
-    if (!productSearchableSelect) {
-        productSearchableSelect = new SearchableSelect('productSelectContainer');
-    }
-
-    // Format data for searchable select
-    const data = allProducts.map(product => ({
-        value: product['ИзделиеID'],
-        text: `${product['Изделие']} (${product['Конструкций']})`
-    }));
-
-    productSearchableSelect.setData(data);
-}
-
-/**
- * Initialize tab switching and filter for product dropdown
- * Note: Using $(document).ready() instead of DOMContentLoaded because this script is loaded dynamically
- * and DOMContentLoaded may have already fired by the time this script executes
- */
-$(document).ready(function() {
-    // Initialize tab switching for project modal
-    // Use jQuery's tab() method to handle clicks since stopPropagation() on modal prevents default Bootstrap behavior
-    $('#projectInfo-tab').on('click', function(e) {
-        e.preventDefault();
-        $(this).tab('show');
-    });
-
-    $('#projectProducts-tab').on('click', function(e) {
-        e.preventDefault();
-        $(this).tab('show');
-    });
-
-    // Note: Product search is now handled by SearchableSelect component
-});
-
-/**
- * Display project products list
- */
-function displayProjectProducts() {
-    const productsList = document.getElementById('projectProductsList');
-
-    if (!projectProducts || projectProducts.length === 0) {
-        productsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #6c757d;">Изделия не добавлены</div>';
-        return;
-    }
-
-    // Sort by order
-    const sortedProducts = [...projectProducts].sort((a, b) => {
-        return (parseInt(a['ИзделияOrder']) || 0) - (parseInt(b['ИзделияOrder']) || 0);
-    });
-
-    // Build products list
-    productsList.innerHTML = sortedProducts.map(product => {
-        // Find product details from allProducts
-        const productDetails = allProducts.find(p => p['ИзделиеID'] === product['ИзделиеID']);
-        const productName = productDetails ? productDetails['Изделие'] : 'Unknown';
-        const constructions = productDetails ? productDetails['Конструкций'] : '0';
-
-        return `
-            <div class="product-item"
-                 draggable="true"
-                 data-product-id="${product['ИзделиеID']}"
-                 data-selection-id="${product['Строка Изделия']}"
-                 data-order="${product['ИзделияOrder']}">
-                <div class="product-content">
-                    <span class="drag-handle">☰</span>
-                    <span>${escapeHtml(productName)} (${constructions})</span>
-                </div>
-                <div class="product-actions">
-                    <button type="button" class="product-delete-btn" onclick="confirmDeleteProduct('${product['Строка Изделия']}', '${escapeHtml(productName)}')">
-                        🗑️
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    // Add drag-and-drop handlers
-    addProductDragHandlers();
-}
-
-/**
- * Filter displayed project products based on search
- */
-function filterProjectProducts() {
-    const searchTerm = document.getElementById('projectProductSearch').value.toLowerCase();
-    const productItems = document.querySelectorAll('.product-item');
-
-    productItems.forEach(item => {
-        const text = item.textContent.toLowerCase();
-        if (text.includes(searchTerm)) {
-            item.style.display = '';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-}
-
-/**
- * Add product to project
- */
-function addProductToProject() {
-    const projectId = document.getElementById('projectId').value;
-    const productId = productSearchableSelect ? productSearchableSelect.getValue() : null;
-
-    if (!projectId) {
-        alert('Сначала сохраните проект');
-        return;
-    }
-
-    if (!productId) {
-        alert('Выберите изделие');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('_xsrf', xsrf);
-    formData.append('t6154', productId);
-
-    const url = `https://${window.location.host}/${db}/_m_new/6152?JSON&up=${projectId}`;
-
-    fetch(url, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Product added:', data);
-
-        // Reload project products
-        loadProjectProducts(projectId);
-
-        // Reset selection
-        if (productSearchableSelect) {
-            productSearchableSelect.reset();
-        }
-    })
-    .catch(error => {
-        console.error('Error adding product:', error);
-        alert('Ошибка при добавлении изделия');
-    });
-}
-
-/**
- * Confirm product deletion
- */
-function confirmDeleteProduct(selectionId, productName) {
-    if (confirm(`Вы уверены, что хотите удалить изделие "${productName}"?`)) {
-        deleteProduct(selectionId);
-    }
-}
-
-/**
- * Delete product from project
- */
-function deleteProduct(selectionId) {
-    const formData = new FormData();
-    formData.append('_xsrf', xsrf);
-
-    const url = `https://${window.location.host}/${db}/_m_del/${selectionId}?JSON`;
-
-    fetch(url, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Product deleted:', data);
-
-        // Reload project products
-        const projectId = document.getElementById('projectId').value;
-        loadProjectProducts(projectId);
-    })
-    .catch(error => {
-        console.error('Error deleting product:', error);
-        alert('Ошибка при удалении изделия');
-    });
-}
-
-/**
- * Add drag-and-drop handlers to product items
- */
-function addProductDragHandlers() {
-    const productItems = document.querySelectorAll('.product-item');
-
-    productItems.forEach(item => {
-        item.addEventListener('dragstart', handleProductDragStart);
-        item.addEventListener('dragover', handleProductDragOver);
-        item.addEventListener('drop', handleProductDrop);
-        item.addEventListener('dragend', handleProductDragEnd);
-    });
-}
-
-/**
- * Handle drag start
- */
-function handleProductDragStart(e) {
-    draggedProductElement = this;
-    this.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', this.innerHTML);
-}
-
-/**
- * Handle drag over
- */
-function handleProductDragOver(e) {
-    if (e.preventDefault) {
-        e.preventDefault();
-    }
-    e.dataTransfer.dropEffect = 'move';
-
-    const afterElement = getDragAfterElement(document.getElementById('projectProductsList'), e.clientY);
-    const draggable = draggedProductElement;
-
-    if (afterElement == null) {
-        document.getElementById('projectProductsList').appendChild(draggable);
-    } else {
-        document.getElementById('projectProductsList').insertBefore(draggable, afterElement);
-    }
-
-    return false;
-}
-
-/**
- * Handle drop
- */
-function handleProductDrop(e) {
-    if (e.stopPropagation) {
-        e.stopPropagation();
-    }
-
-    return false;
-}
-
-/**
- * Handle drag end
- */
-function handleProductDragEnd(e) {
-    this.classList.remove('dragging');
-
-    // Calculate new order
-    const productItems = Array.from(document.querySelectorAll('.product-item'));
-    const draggedIndex = productItems.indexOf(this);
-    const newOrder = draggedIndex + 1;
-
-    const selectionId = this.dataset.selectionId;
-
-    // Save the new order for the dragged element only (Issue #82 pattern)
-    saveProductOrder(selectionId, newOrder);
-}
-
-/**
- * Get element after which the dragged element should be placed
- */
-function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('.product-item:not(.dragging)')];
-
-    return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-
-        if (offset < 0 && offset > closest.offset) {
-            return { offset: offset, element: child };
-        } else {
-            return closest;
-        }
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
-}
-
-/**
- * Save product order (only for the dragged element - Issue #82 pattern)
- */
-function saveProductOrder(selectionId, newOrder) {
-    const formData = new FormData();
-    formData.append('_xsrf', xsrf);
-    formData.append('order', newOrder);
-
-    const url = `https://${window.location.host}/${db}/_m_ord/${selectionId}?JSON`;
-
-    fetch(url, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Product order saved:', data);
-
-        // Reload project products to get updated order from backend
-        const projectId = document.getElementById('projectId').value;
-        loadProjectProducts(projectId);
-    })
-    .catch(error => {
-        console.error('Error saving product order:', error);
-        alert('Ошибка при сохранении порядка изделия');
-    });
-}
