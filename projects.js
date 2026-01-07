@@ -3050,19 +3050,29 @@ function displayConstructionsData() {
 
     tbody.innerHTML = '';
 
-    if (constructionsData.length === 0) {
+    // Filter out temporary rows with empty construction names
+    const validConstructions = constructionsData.filter(item => {
+        // Keep all rows that are already saved (have real IDs)
+        if (!item['КонструкцияID'] || !item['КонструкцияID'].startsWith('temp_')) {
+            return true;
+        }
+        // For temporary rows, only keep those with non-empty construction names
+        return item['Конструкция'] && item['Конструкция'].trim() !== '';
+    });
+
+    if (validConstructions.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #6c757d;">Нет данных</td></tr>';
         return;
     }
 
     // Sort by order
-    constructionsData.sort((a, b) => {
+    validConstructions.sort((a, b) => {
         const orderA = parseInt(a['КонструкцияOrder'] || 0);
         const orderB = parseInt(b['КонструкцияOrder'] || 0);
         return orderA - orderB;
     });
 
-    constructionsData.forEach((item, index) => {
+    validConstructions.forEach((item, index) => {
         const row = createConstructionRow(item, index + 1);
         tbody.appendChild(row);
     });
