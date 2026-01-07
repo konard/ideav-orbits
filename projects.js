@@ -3151,6 +3151,26 @@ async function createConstructionRowInDB(tempId, item) {
                 constructionsData[itemIndex]['КонструкцияID'] = realId;
             }
 
+            // Calculate the order for the new construction (should be at the end)
+            // Get the maximum order from existing constructions
+            const maxOrder = constructionsData.reduce((max, c) => {
+                if (c['КонструкцияID'] === tempId) return max; // Skip the current temp item
+                const order = parseInt(c['КонструкцияOrder'] || 0);
+                return order > max ? order : max;
+            }, 0);
+
+            const newOrder = maxOrder + 1;
+
+            // Set the order for the newly created construction to place it at the end
+            const orderFormData = new FormData();
+            orderFormData.append('_xsrf', xsrf);
+            orderFormData.append('order', newOrder);
+
+            await fetch(`https://${window.location.host}/${db}/_m_ord/${realId}?JSON`, {
+                method: 'POST',
+                body: orderFormData
+            });
+
             // Reload constructions data to ensure we're in sync with server
             await loadConstructionsData();
         } else {
