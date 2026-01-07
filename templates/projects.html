@@ -524,6 +524,130 @@
     .form-group-with-button .form-group {
         margin-bottom: 0;
     }
+
+    /* Estimate modal styles */
+    .estimate-modal-dialog {
+        max-width: 1200px;
+        width: 95%;
+    }
+
+    .estimate-table-container {
+        overflow-x: auto;
+        max-height: 60vh;
+        margin-bottom: 20px;
+    }
+
+    .estimate-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    .estimate-table thead {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 10;
+    }
+
+    .estimate-table th {
+        padding: 12px 8px;
+        text-align: left;
+        border-bottom: 2px solid #007bff;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+
+    .estimate-table th:first-child {
+        width: 50px;
+        text-align: center;
+    }
+
+    .estimate-table th:nth-child(2) {
+        min-width: 250px;
+    }
+
+    .estimate-table th:nth-child(3) {
+        width: 100px;
+    }
+
+    .estimate-table th:nth-child(4),
+    .estimate-table th:nth-child(5),
+    .estimate-table th:nth-child(6) {
+        width: 120px;
+        text-align: right;
+    }
+
+    .estimate-table th:last-child {
+        width: 100px;
+        text-align: center;
+    }
+
+    .estimate-table td {
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .estimate-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .estimate-table input[type="text"],
+    .estimate-table input[type="number"],
+    .estimate-table select {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .estimate-table input[type="number"] {
+        text-align: right;
+    }
+
+    .estimate-table .estimate-row-number {
+        text-align: center;
+        font-weight: 500;
+        color: #6c757d;
+    }
+
+    .estimate-table .estimate-sum {
+        text-align: right;
+        font-weight: 500;
+        padding-right: 8px;
+    }
+
+    .estimate-table .estimate-actions {
+        text-align: center;
+    }
+
+    .estimate-table tfoot {
+        position: sticky;
+        bottom: 0;
+        background-color: #f8f9fa;
+        font-weight: bold;
+    }
+
+    .estimate-table tfoot td {
+        border-top: 2px solid #007bff;
+        padding: 12px 8px;
+    }
+
+    .estimate-table tfoot .estimate-total-sum {
+        text-align: right;
+        font-size: 16px;
+        color: #007bff;
+    }
+
+    .estimate-add-row-btn {
+        margin-top: 10px;
+    }
+
+    .btn-delete-estimate {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
 </style>
 
 <div class="project-list-container">
@@ -552,10 +676,10 @@
         </div>
 
         <div class="controls-row">
-            <button class="btn btn-primary btn-sm" onclick="showAddTaskModal()">
+            <button class="btn btn-primary btn-sm" onclick="showEstimateModal()">
                 Смета
             </button>
-            <button class="btn btn-primary btn-sm" onclick="">
+            <button class="btn btn-primary btn-sm" onclick="showAddTaskModal()">
                 Конструкции
             </button>
 
@@ -853,6 +977,45 @@
                 <span style="margin-left: 10px;">Добавление операций...</span>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Estimate Modal -->
+<div class="modal-backdrop" id="estimateModalBackdrop" onclick="closeEstimateModal()">
+    <div class="modal-dialog-custom estimate-modal-dialog" onclick="event.stopPropagation()">
+        <h5>Смета проекта: <span id="estimateProjectName"></span></h5>
+
+        <div class="estimate-table-container">
+            <table class="estimate-table">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Наименование работ</th>
+                        <th>Ед. изм.</th>
+                        <th>Кол-во</th>
+                        <th>Цена за ед., руб.</th>
+                        <th>Сумма, руб.</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="estimateTableBody">
+                    <!-- Estimate rows will be loaded here -->
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" style="text-align: right; font-weight: bold;">Итого:</td>
+                        <td class="estimate-total-sum" id="estimateTotalSum">0.00</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <button type="button" class="btn btn-primary estimate-add-row-btn" onclick="addEstimateRow()">+ Добавить строку</button>
+
+        <div class="btn-group-custom">
+            <button type="button" class="btn btn-outline-secondary" onclick="closeEstimateModal()">Закрыть</button>
+        </div>
     </div>
 </div>
 

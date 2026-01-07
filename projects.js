@@ -2596,3 +2596,293 @@ document.getElementById('objectForm').addEventListener('submit', async function(
 // Load cities and regions data when page loads
 loadCitiesAndRegions();
 
+/**
+ * Estimate Modal Functions
+ */
+
+// Global state for estimate
+let estimateData = [];
+let estimateMetadata = null;
+
+/**
+ * Show estimate modal and load estimate data
+ */
+async function showEstimateModal() {
+    if (!selectedProject) {
+        alert('Выберите проект');
+        return;
+    }
+
+    // Set project name in modal
+    document.getElementById('estimateProjectName').textContent = selectedProject['Проект'] || '';
+
+    // Show modal
+    document.getElementById('estimateModalBackdrop').classList.add('show');
+
+    // Load estimate metadata and data
+    await loadEstimateMetadata();
+    await loadEstimateData();
+}
+
+/**
+ * Close estimate modal
+ */
+function closeEstimateModal() {
+    document.getElementById('estimateModalBackdrop').classList.remove('show');
+    estimateData = [];
+}
+
+/**
+ * Load estimate metadata (field definitions)
+ */
+async function loadEstimateMetadata() {
+    try {
+        const response = await fetch(`https://${window.location.host}/${db}/report/6626?JSON_KV`);
+        const data = await response.json();
+
+        if (data && data.length > 0) {
+            estimateMetadata = data[0];
+        }
+    } catch (error) {
+        console.error('Error loading estimate metadata:', error);
+    }
+}
+
+/**
+ * Load estimate data for current project
+ */
+async function loadEstimateData() {
+    if (!selectedProject) return;
+
+    const projectId = selectedProject['ПроектID'];
+
+    try {
+        const response = await fetch(`https://${window.location.host}/${db}/report/6631?JSON_KV&FR_ProjectID=${projectId}`);
+        const data = await response.json();
+
+        estimateData = data || [];
+        displayEstimateData();
+    } catch (error) {
+        console.error('Error loading estimate data:', error);
+        alert('Ошибка загрузки сметы');
+    }
+}
+
+/**
+ * Display estimate data in table
+ */
+function displayEstimateData() {
+    const tbody = document.getElementById('estimateTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (estimateData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #6c757d;">Нет данных</td></tr>';
+        updateEstimateTotalSum();
+        return;
+    }
+
+    // Sort by order
+    estimateData.sort((a, b) => {
+        const orderA = parseInt(a['СметаOrder'] || 0);
+        const orderB = parseInt(b['СметаOrder'] || 0);
+        return orderA - orderB;
+    });
+
+    estimateData.forEach((item, index) => {
+        const row = createEstimateRow(item, index + 1);
+        tbody.appendChild(row);
+    });
+
+    updateEstimateTotalSum();
+}
+
+/**
+ * Create estimate row element
+ */
+function createEstimateRow(item, rowNumber) {
+    const tr = document.createElement('tr');
+    tr.dataset.estimateId = item['СметаID'] || '';
+
+    const quantity = parseFloat(item['К-во'] || 0);
+    const price = parseFloat(item['Цена за ед.'] || 0);
+    const sum = quantity * price;
+
+    tr.innerHTML = `
+        <td class="estimate-row-number">${rowNumber}</td>
+        <td>
+            <input type="text" value="${escapeHtml(item['Смета'] || '')}"
+                   onchange="updateEstimateField('${item['СметаID']}', 'Смета', this.value)">
+        </td>
+        <td>
+            <select onchange="updateEstimateField('${item['СметаID']}', 'Ед.изм.', this.value)">
+                <option value="">Выберите</option>
+                ${dictionaries.units.map(unit => `
+                    <option value="${unit['Ед.изм.ID']}" ${item['Ед.изм.'] === unit['Ед.изм.'] ? 'selected' : ''}>
+                        ${escapeHtml(unit['Ед.изм.'])}
+                    </option>
+                `).join('')}
+            </select>
+        </td>
+        <td>
+            <input type="number" step="0.01" value="${quantity}"
+                   onchange="updateEstimateField('${item['СметаID']}', 'К-во', this.value)">
+        </td>
+        <td>
+            <input type="number" step="0.01" value="${price}"
+                   onchange="updateEstimateField('${item['СметаID']}', 'Цена за ед.', this.value)">
+        </td>
+        <td class="estimate-sum">${sum.toFixed(2)}</td>
+        <td class="estimate-actions">
+            <button class="btn btn-sm btn-danger btn-delete-estimate" onclick="deleteEstimateRow('${item['СметаID']}')">Удалить</button>
+        </td>
+    `;
+
+    return tr;
+}
+
+/**
+ * Update estimate field value
+ */
+async function updateEstimateField(estimateId, fieldName, value) {
+    const item = estimateData.find(e => e['СметаID'] === estimateId);
+    if (!item) return;
+
+    // Update local data
+    item[fieldName] = value;
+
+    // Recalculate sum if quantity or price changed
+    if (fieldName === 'К-во' || fieldName === 'Цена за ед.') {
+        displayEstimateData();
+    }
+
+    // Save to server
+    await saveEstimateRow(estimateId);
+}
+
+/**
+ * Save estimate row to server
+ */
+async function saveEstimateRow(estimateId) {
+    const item = estimateData.find(e => e['СметаID'] === estimateId);
+    if (!item || !estimateMetadata) return;
+
+    try {
+        // Build form data according to metadata
+        const formData = new FormData();
+
+        // Add fields from metadata
+        if (estimateMetadata.reqs) {
+            estimateMetadata.reqs.forEach(req => {
+                const fieldName = req.val;
+                const fieldId = req.id;
+                const value = item[fieldName] || '';
+
+                formData.append(`t${fieldId}`, value);
+            });
+        }
+
+        // Also save the main field (Смета)
+        formData.append(`t${estimateMetadata.id}`, item['Смета'] || '');
+
+        const response = await fetch(`https://${window.location.host}/${db}/_m_save/${estimateId}?JSON`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (!result.obj) {
+            console.error('Error saving estimate row:', result);
+        }
+    } catch (error) {
+        console.error('Error saving estimate row:', error);
+    }
+}
+
+/**
+ * Add new estimate row
+ */
+async function addEstimateRow() {
+    if (!selectedProject || !estimateMetadata) return;
+
+    const projectId = selectedProject['ПроектID'];
+
+    try {
+        const formData = new FormData();
+
+        // Set default empty values for all fields
+        formData.append(`t${estimateMetadata.id}`, 'Новая работа');
+
+        if (estimateMetadata.reqs) {
+            estimateMetadata.reqs.forEach(req => {
+                formData.append(`t${req.id}`, '');
+            });
+        }
+
+        const response = await fetch(`https://${window.location.host}/${db}/_m_new/6626?JSON&up=${projectId}`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.obj) {
+            // Reload estimate data
+            await loadEstimateData();
+        } else {
+            alert('Ошибка при добавлении строки');
+        }
+    } catch (error) {
+        console.error('Error adding estimate row:', error);
+        alert('Ошибка при добавлении строки');
+    }
+}
+
+/**
+ * Delete estimate row
+ */
+async function deleteEstimateRow(estimateId) {
+    if (!confirm('Удалить эту строку?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`https://${window.location.host}/${db}/_m_del/${estimateId}?JSON`, {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (result.ok || result.obj) {
+            // Remove from local data
+            estimateData = estimateData.filter(e => e['СметаID'] !== estimateId);
+            displayEstimateData();
+        } else {
+            alert('Ошибка при удалении строки');
+        }
+    } catch (error) {
+        console.error('Error deleting estimate row:', error);
+        alert('Ошибка при удалении строки');
+    }
+}
+
+/**
+ * Update total sum in estimate table
+ */
+function updateEstimateTotalSum() {
+    let totalSum = 0;
+
+    estimateData.forEach(item => {
+        const quantity = parseFloat(item['К-во'] || 0);
+        const price = parseFloat(item['Цена за ед.'] || 0);
+        totalSum += quantity * price;
+    });
+
+    const totalSumElement = document.getElementById('estimateTotalSum');
+    if (totalSumElement) {
+        totalSumElement.textContent = totalSum.toFixed(2);
+    }
+}
+
