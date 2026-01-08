@@ -1390,7 +1390,7 @@ function editTask(taskId) {
         statusSelect.value = statusOption.value;
     }
 
-    // Set quantity and unit
+    // Set quantity, unit and price
     document.getElementById('taskQuantity').value = taskData['К-во'] || '';
     const unitSelect = document.getElementById('taskUnit');
     const unitOption = Array.from(unitSelect.options).find(opt =>
@@ -1399,6 +1399,7 @@ function editTask(taskId) {
     if (unitOption) {
         unitSelect.value = unitOption.value;
     }
+    document.getElementById('taskPrice').value = taskData['Цена'] || '';
 
     // Show delete button when editing existing task
     document.getElementById('deleteTaskBtn').classList.remove('hidden');
@@ -1573,6 +1574,7 @@ document.getElementById('taskForm').addEventListener('submit', function(e) {
     formData.append('t688', document.getElementById('taskStatus').value); // Статус задачи
     formData.append('t1030', document.getElementById('taskQuantity').value); // К-во
     formData.append('t1036', document.getElementById('taskUnit').value); // Ед.изм.
+    formData.append('t6456', document.getElementById('taskPrice').value); // Цена
 
     const url = taskId ?
         `https://${window.location.host}/${db}/_m_save/${taskId}?JSON` :
