@@ -2711,6 +2711,14 @@ async function loadConstructionsData() {
         const data = await response.json();
 
         constructionsData = data || [];
+
+        // Ensure all rows have IDs - assign temp IDs to rows without IDs
+        constructionsData.forEach((item, index) => {
+            if (!item['КонструкцияID'] || item['КонструкцияID'] === '') {
+                item['КонструкцияID'] = `temp_${Date.now()}_${index}`;
+            }
+        });
+
         displayConstructionsData();
     } catch (error) {
         console.error('Error loading constructions data:', error);
@@ -2814,8 +2822,10 @@ async function updateConstructionField(constructionId, fieldName, value) {
     // Update local data
     item[fieldName] = value;
 
-    // If this is a new unsaved row (has temp ID starting with 'temp_')
-    if (constructionId.startsWith('temp_')) {
+    // If this is a new unsaved row (no ID, undefined, null, empty string, or temp ID starting with 'temp_')
+    const isNewRow = !constructionId || constructionId === '' || constructionId.startsWith('temp_');
+
+    if (isNewRow) {
         // Only create row in DB when construction name field is edited
         if (fieldName === 'Конструкция' && value.trim() !== '') {
             await createConstructionRowInDB(constructionId, item);
@@ -2857,7 +2867,14 @@ async function createConstructionRowInDB(tempId, item) {
             const realId = result.obj;
 
             // Update the temp ID to the real ID in constructionsData
-            const itemIndex = constructionsData.findIndex(c => c['КонструкцияID'] === tempId);
+            // First try to find by ID match
+            let itemIndex = constructionsData.findIndex(c => c['КонструкцияID'] === tempId);
+
+            // If not found by ID (e.g., if tempId was undefined/null), try to find by object reference
+            if (itemIndex === -1) {
+                itemIndex = constructionsData.findIndex(c => c === item);
+            }
+
             if (itemIndex !== -1) {
                 constructionsData[itemIndex]['КонструкцияID'] = realId;
             }
@@ -2865,7 +2882,8 @@ async function createConstructionRowInDB(tempId, item) {
             // Calculate the order for the new construction (should be at the end)
             // Get the maximum order from existing constructions
             const maxOrder = constructionsData.reduce((max, c) => {
-                if (c['КонструкцияID'] === tempId) return max; // Skip the current temp item
+                // Skip the current temp item (by ID match or object reference)
+                if (c['КонструкцияID'] === tempId || c === item) return max;
                 const order = parseInt(c['КонструкцияOrder'] || 0);
                 return order > max ? order : max;
             }, 0);
@@ -2900,8 +2918,10 @@ async function saveConstructionRow(constructionId) {
     const item = constructionsData.find(c => c['КонструкцияID'] === constructionId);
     if (!item) return;
 
-    // If this is a temporary row (no real ID yet), use _m_new instead
-    if (constructionId.startsWith('temp_')) {
+    // If this is a new row (no ID, undefined, null, empty string, or temp ID), use _m_new instead of _m_save
+    const isNewRow = !constructionId || constructionId === '' || constructionId.startsWith('temp_');
+
+    if (isNewRow) {
         await createConstructionRowInDB(constructionId, item);
         return;
     }
