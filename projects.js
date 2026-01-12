@@ -20,11 +20,12 @@ let dictionaries = {
 let deleteModeActive = false;
 let selectedItemsForDeletion = new Set();
 
-// State for remembering Direction and Work Type selections per task
+// State for remembering Direction, Work Type, and Product selections per task
 let lastOperationFilters = {
     taskId: null,
     direction: '',
     workType: '',
+    product: '',
     templateFilter: false
 };
 
@@ -155,11 +156,13 @@ function loadDictionaries() {
         .then(data => {
             dictionaries.operationTemplates = data;
 
-            // Extract unique directions and work types
+            // Extract unique directions, work types, and products
             extractDirectionsAndWorkTypes(data);
+            extractProducts(data);
 
-            // Populate direction dropdown
+            // Populate direction and product dropdowns
             populateDirectionSelect();
+            populateProductSelect();
 
             // Don't populate operation template dropdown initially - wait for filters
             // populateSelect('operationTemplate', data, 'Операция (шаблон)', 'Операция (шаблон)ID');
@@ -246,6 +249,23 @@ function extractDirectionsAndWorkTypes(templates) {
 }
 
 /**
+ * Extract unique products from operation templates
+ */
+function extractProducts(templates) {
+    const productsSet = new Set();
+
+    templates.forEach(template => {
+        const product = template['Изделие'];
+        if (product) {
+            productsSet.add(product);
+        }
+    });
+
+    // Convert set to array and store in dictionaries
+    dictionaries.products = Array.from(productsSet).map(name => ({ name }));
+}
+
+/**
  * Populate direction select dropdown
  */
 function populateDirectionSelect() {
@@ -277,6 +297,31 @@ function populateDirectionSelect() {
 }
 
 /**
+ * Populate product select dropdown
+ */
+function populateProductSelect() {
+    const select = document.getElementById('operationProduct');
+    if (!select) return;
+
+    // Clear existing options except the first one
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    // Add new options
+    dictionaries.products.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.name;
+        option.textContent = product.name;
+        select.appendChild(option);
+    });
+
+    // Add event listener for product change
+    select.removeEventListener('change', onProductChange);
+    select.addEventListener('change', onProductChange);
+}
+
+/**
  * Handle direction selection change
  */
 function onDirectionChange(event) {
@@ -287,6 +332,7 @@ function onDirectionChange(event) {
     // Save selected direction to state
     lastOperationFilters.direction = selectedDirection;
     lastOperationFilters.workType = ''; // Reset work type when direction changes
+    // Note: We don't reset product here because it's independent of direction
 
     // Reset work type dropdown
     if (workTypeSelect) {
@@ -323,8 +369,9 @@ function onDirectionChange(event) {
 
     // If no work types exist for this direction, filter operations directly
     if (!workTypes || workTypes.size === 0) {
+        const selectedProduct = document.getElementById('operationProduct').value;
         const templateFilter = document.getElementById('operationTemplateFilter')?.checked || false;
-        filterOperationTemplates(selectedDirection, null, templateFilter);
+        filterOperationTemplates(selectedDirection, null, selectedProduct, templateFilter);
     }
 }
 
@@ -334,12 +381,13 @@ function onDirectionChange(event) {
 function onWorkTypeChange(event) {
     const selectedDirection = document.getElementById('operationDirection').value;
     const selectedWorkType = event.target.value;
+    const selectedProduct = document.getElementById('operationProduct').value;
 
     // Save selected work type to state
     lastOperationFilters.workType = selectedWorkType;
 
     const templateFilter = document.getElementById('operationTemplateFilter')?.checked || false;
-    filterOperationTemplates(selectedDirection, selectedWorkType, templateFilter);
+    filterOperationTemplates(selectedDirection, selectedWorkType, selectedProduct, templateFilter);
 }
 
 /**
@@ -348,32 +396,49 @@ function onWorkTypeChange(event) {
 function onTemplateFilterChange(event) {
     const selectedDirection = document.getElementById('operationDirection').value;
     const selectedWorkType = document.getElementById('operationWorkType').value;
+    const selectedProduct = document.getElementById('operationProduct').value;
     const templateFilter = event.target.checked;
 
     // Save template filter state
     lastOperationFilters.templateFilter = templateFilter;
 
-    filterOperationTemplates(selectedDirection, selectedWorkType, templateFilter);
+    filterOperationTemplates(selectedDirection, selectedWorkType, selectedProduct, templateFilter);
 }
 
 /**
- * Get filtered operation templates based on direction, work type, and template filter
+ * Handle product selection change
  */
-function getFilteredOperationTemplates(direction, workType, templateFilter) {
+function onProductChange(event) {
+    const selectedDirection = document.getElementById('operationDirection').value;
+    const selectedWorkType = document.getElementById('operationWorkType').value;
+    const selectedProduct = event.target.value;
+    const templateFilter = document.getElementById('operationTemplateFilter')?.checked || false;
+
+    // Save selected product to state
+    lastOperationFilters.product = selectedProduct;
+
+    filterOperationTemplates(selectedDirection, selectedWorkType, selectedProduct, templateFilter);
+}
+
+/**
+ * Get filtered operation templates based on direction, work type, product, and template filter
+ */
+function getFilteredOperationTemplates(direction, workType, product, templateFilter) {
     return dictionaries.operationTemplates.filter(template => {
         const matchesDirection = !direction || template['Направление'] === direction;
         const matchesWorkType = !workType || template['Вид работ'] === workType;
+        const matchesProduct = !product || template['Изделие'] === product;
         // If templateFilter is checked, only show templates with "Шаблонная" === "X"
         // If templateFilter is not checked, show all templates
         const matchesTemplateFilter = !templateFilter || template['Шаблонная'] === 'X';
-        return matchesDirection && matchesWorkType && matchesTemplateFilter;
+        return matchesDirection && matchesWorkType && matchesProduct && matchesTemplateFilter;
     });
 }
 
 /**
- * Filter operation templates based on direction, work type, and template filter
+ * Filter operation templates based on direction, work type, product, and template filter
  */
-function filterOperationTemplates(direction, workType, templateFilter) {
+function filterOperationTemplates(direction, workType, product, templateFilter) {
     const operationSelect = document.getElementById('operationTemplate');
     if (!operationSelect) return;
 
@@ -383,7 +448,7 @@ function filterOperationTemplates(direction, workType, templateFilter) {
     }
 
     // Get filtered templates
-    const filteredTemplates = getFilteredOperationTemplates(direction, workType, templateFilter);
+    const filteredTemplates = getFilteredOperationTemplates(direction, workType, product, templateFilter);
 
     // Populate filtered options
     filteredTemplates.forEach(template => {
@@ -413,6 +478,12 @@ function resetOperationFilters() {
         }
     }
 
+    // Reset product
+    const productSelect = document.getElementById('operationProduct');
+    if (productSelect) {
+        productSelect.value = '';
+    }
+
     // Reset template filter checkbox
     const templateFilterCheckbox = document.getElementById('operationTemplateFilter');
     if (templateFilterCheckbox) {
@@ -435,11 +506,17 @@ function resetOperationFilters() {
 function restoreOperationFilters() {
     const directionSelect = document.getElementById('operationDirection');
     const workTypeSelect = document.getElementById('operationWorkType');
+    const productSelect = document.getElementById('operationProduct');
     const templateFilterCheckbox = document.getElementById('operationTemplateFilter');
 
     // Restore template filter checkbox
     if (templateFilterCheckbox) {
         templateFilterCheckbox.checked = lastOperationFilters.templateFilter || false;
+    }
+
+    // Restore product if it was previously selected
+    if (lastOperationFilters.product && productSelect) {
+        productSelect.value = lastOperationFilters.product;
     }
 
     // Restore direction if it was previously selected
@@ -1421,6 +1498,7 @@ function showAddOperationModal(taskId) {
         lastOperationFilters.taskId = taskId;
         lastOperationFilters.direction = '';
         lastOperationFilters.workType = '';
+        lastOperationFilters.product = '';
         resetOperationFilters();
     } else {
         // Same task - restore previous selections
@@ -1434,6 +1512,7 @@ function showAddOperationModal(taskId) {
     document.getElementById('operationDirection').parentElement.style.display = 'block';
     document.getElementById('operationWorkType').parentElement.style.display = 'block';
     document.getElementById('operationTemplateFilter').parentElement.parentElement.style.display = 'block';
+    document.getElementById('operationProduct').parentElement.style.display = 'block';
     document.getElementById('operationTemplate').parentElement.style.display = 'block';
     document.getElementById('operationTemplateNameGroup').style.display = 'none';
 
@@ -1441,6 +1520,7 @@ function showAddOperationModal(taskId) {
     document.getElementById('operationDirection').disabled = false;
     document.getElementById('operationWorkType').disabled = false;
     document.getElementById('operationTemplateFilter').disabled = false;
+    document.getElementById('operationProduct').disabled = false;
 
     // Hide the Операция name field for creation (it will be auto-filled from template)
     const operationNameField = document.getElementById('operationName');
@@ -1479,6 +1559,7 @@ function editOperation(operationId) {
     document.getElementById('operationDirection').parentElement.style.display = 'none';
     document.getElementById('operationWorkType').parentElement.style.display = 'none';
     document.getElementById('operationTemplateFilter').parentElement.parentElement.style.display = 'none';
+    document.getElementById('operationProduct').parentElement.style.display = 'none';
     document.getElementById('operationTemplate').parentElement.style.display = 'none';
 
     // Show template name as read-only hyperlink
