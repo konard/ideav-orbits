@@ -1,0 +1,855 @@
+<style>
+    .project-list-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .search-box {
+        padding: 5px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        flex: 1;
+        font-size: 14px;
+    }
+
+    .filter-select {
+        padding: 5px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+        min-width: 150px;
+        background-color: white;
+    }
+
+    .controls-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        align-items: center;
+    }
+
+    .project-list {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+    .project-item {
+        padding: 15px;
+        border-bottom: 1px solid #dee2e6;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        position: relative;
+    }
+
+    .project-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .project-item.active {
+        background-color: #e7f3ff;
+        border-left: 3px solid #007bff;
+    }
+
+    .project-item:last-child {
+        border-bottom: none;
+    }
+
+    .project-header {
+        font-weight: bold;
+        font-size: 16px;
+        margin-bottom: 5px;
+    }
+
+    .project-meta {
+        font-size: 13px;
+        color: #6c757d;
+    }
+
+    .btn-add-project {
+        white-space: nowrap;
+    }
+
+    /* Project Detail View */
+    .project-detail-view {
+        display: none;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: #fff;
+    }
+
+    .project-detail-view.active {
+        display: block;
+    }
+
+    .project-detail-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+
+    .project-detail-title {
+        font-size: 18px;
+        font-weight: bold;
+        color: #007bff;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .project-detail-title:hover {
+        text-decoration: underline;
+    }
+
+    .edit-external-link {
+        color: #adb5bd;
+        font-size: 14px;
+        text-decoration: none;
+    }
+
+    .edit-external-link:hover {
+        color: #6c757d;
+    }
+
+    .completeness-badge {
+        background: #e9ecef;
+        color: #495057;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 13px;
+    }
+
+    .completeness-badge.low { background: #f8d7da; color: #721c24; }
+    .completeness-badge.medium { background: #fff3cd; color: #856404; }
+    .completeness-badge.high { background: #d4edda; color: #155724; }
+
+    .close-detail-btn {
+        margin-left: auto;
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        color: #6c757d;
+        padding: 0 5px;
+    }
+
+    .close-detail-btn:hover {
+        color: #343a40;
+    }
+
+    /* Info table */
+    .project-info-table {
+        width: 100%;
+        font-size: 14px;
+        margin-bottom: 20px;
+    }
+
+    .project-info-table td {
+        padding: 8px 15px 8px 0;
+        vertical-align: top;
+    }
+
+    .project-info-table .label {
+        color: #6c757d;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .project-info-table .value {
+        color: #212529;
+    }
+
+    /* Tabs */
+    .detail-tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid #007bff;
+        margin-bottom: 20px;
+    }
+
+    .detail-tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
+        margin-right: 2px;
+        font-weight: 500;
+        color: #6c757d;
+    }
+
+    .detail-tab.active {
+        background: #fff;
+        border-color: #007bff;
+        border-bottom: 2px solid #fff;
+        margin-bottom: -2px;
+        color: #007bff;
+    }
+
+    .detail-tab:hover:not(.active) {
+        background: #e9ecef;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    /* Estimate table */
+    .estimate-table-container {
+        overflow-x: auto;
+    }
+
+    .estimate-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    .estimate-table thead {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 10;
+    }
+
+    .estimate-table th {
+        padding: 12px 8px;
+        text-align: left;
+        border-bottom: 2px solid #007bff;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+
+    .estimate-table th:first-child { width: 50px; text-align: center; }
+    .estimate-table th:nth-child(2) { min-width: 250px; }
+    .estimate-table th:nth-child(3) { width: 80px; text-align: right; }
+    .estimate-table th:nth-child(4) { width: 80px; }
+    .estimate-table th:nth-child(5) { width: 100px; text-align: right; }
+    .estimate-table th:nth-child(6) { width: 100px; text-align: right; }
+    .estimate-table th:nth-child(7) { min-width: 200px; }
+    .estimate-table th:last-child { width: 80px; text-align: center; }
+
+    .estimate-table td {
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+        vertical-align: middle;
+    }
+
+    .estimate-table tbody tr {
+        cursor: move;
+    }
+
+    .estimate-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .estimate-table tbody tr.dragging {
+        opacity: 0.5;
+        background-color: #e7f3ff;
+    }
+
+    .estimate-table input[type="text"],
+    .estimate-table input[type="number"] {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    .estimate-table input[type="number"] {
+        text-align: right;
+    }
+
+    .estimate-table .row-number {
+        text-align: center;
+        font-weight: 500;
+        color: #6c757d;
+    }
+
+    .estimate-table .row-actions {
+        text-align: center;
+    }
+
+    .estimate-table .sum-cell {
+        text-align: right;
+        font-weight: 500;
+    }
+
+    /* Work types badges */
+    .work-types-cell {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        align-items: center;
+    }
+
+    .work-type-badge {
+        display: inline-flex;
+        align-items: center;
+        background: #e7f3ff;
+        color: #0056b3;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .work-type-badge .remove-btn {
+        margin-left: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        color: #6c757d;
+    }
+
+    .work-type-badge .remove-btn:hover {
+        color: #dc3545;
+    }
+
+    .add-work-type-btn {
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        cursor: pointer;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .add-work-type-btn:hover {
+        background: #0056b3;
+    }
+
+    /* Work type selector modal */
+    .work-type-selector {
+        position: absolute;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        min-width: 350px;
+        max-width: 450px;
+    }
+
+    .work-type-selector .selector-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .work-type-selector .close-selector {
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        color: #6c757d;
+    }
+
+    .work-type-selector .form-group {
+        margin-bottom: 10px;
+    }
+
+    .work-type-selector label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        font-size: 13px;
+    }
+
+    .work-type-selector select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .work-type-selector .search-input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+    .work-type-selector .add-btn {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    /* Constructions table */
+    .constructions-table-container {
+        overflow-x: auto;
+    }
+
+    .constructions-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    .constructions-table thead {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        z-index: 10;
+    }
+
+    .constructions-table th {
+        padding: 12px 8px;
+        text-align: left;
+        border-bottom: 2px solid #007bff;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+
+    .constructions-table th:first-child { width: 50px; text-align: center; }
+    .constructions-table th:nth-child(2) { min-width: 300px; }
+    .constructions-table th:last-child { width: 100px; text-align: center; }
+
+    .constructions-table td {
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .constructions-table tbody tr {
+        cursor: move;
+    }
+
+    .constructions-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .constructions-table tbody tr.dragging {
+        opacity: 0.5;
+        background-color: #e7f3ff;
+    }
+
+    .constructions-table input[type="text"] {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .constructions-table .row-number {
+        text-align: center;
+        font-weight: 500;
+        color: #6c757d;
+    }
+
+    .constructions-table .row-actions {
+        text-align: center;
+    }
+
+    /* Totals row */
+    .totals-row {
+        background-color: #f8f9fa;
+        font-weight: bold;
+    }
+
+    .totals-row td {
+        border-top: 2px solid #007bff;
+        padding: 12px 8px;
+    }
+
+    .add-row-btn {
+        margin-top: 15px;
+    }
+
+    /* Modal styles */
+    .modal-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1040;
+    }
+
+    .modal-backdrop.show {
+        display: block;
+        opacity: 1 !important;
+    }
+
+    .modal-dialog-custom {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        background-color: #ffffff;
+        opacity: 1;
+        border-radius: 8px;
+        padding: 20px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        z-index: 1050;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+
+    .form-control-custom {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    textarea.form-control-custom {
+        min-height: 80px;
+        resize: vertical;
+    }
+
+    .btn-group-custom {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 20px;
+    }
+
+    .section-title {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #007bff;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    /* Delete button styles */
+    .btn-delete-row {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    /* Delete confirmation modals z-index */
+    #deleteEstimateModalBackdrop,
+    #deleteConstructionModalBackdrop {
+        z-index: 1060;
+    }
+
+    #deleteEstimateModalBackdrop .modal-dialog-custom,
+    #deleteConstructionModalBackdrop .modal-dialog-custom {
+        z-index: 1070;
+    }
+
+    /* Form with button styles */
+    .form-group-with-button {
+        display: flex;
+        align-items: flex-end;
+        gap: 0;
+    }
+
+    .form-group-with-button > div:first-child {
+        flex: 1;
+    }
+
+    .form-group-with-button .form-group {
+        margin-bottom: 0;
+    }
+
+    .btn-icon {
+        padding: 6px 10px;
+        margin-left: 8px;
+    }
+</style>
+
+<div class="project-list-container">
+    <div class="section-title">Рабочее место проекта</div>
+
+    <div class="controls-row">
+        <input type="text" class="search-box" id="projectSearch" placeholder="Поиск по любому полю..." onkeyup="filterProjects()">
+    </div>
+
+    <div class="project-list" id="projectList">
+        <!-- Projects will be loaded here -->
+    </div>
+
+    <!-- Project Detail View -->
+    <div class="project-detail-view" id="projectDetailView">
+        <!-- Header row -->
+        <div class="project-detail-header">
+            <a href="#" class="project-detail-title" id="projectDetailTitle" onclick="showEditProjectModal(); return false;">-</a>
+            <a href="#" class="edit-external-link" id="projectEditLink" target="_blank" title="Редактировать в новом окне">&#9998;</a>
+            <span class="completeness-badge" id="projectCompleteness">Заполненность: 0%</span>
+            <button class="close-detail-btn" onclick="closeProjectDetail()" title="Закрыть">&times;</button>
+        </div>
+
+        <!-- Info table -->
+        <table class="project-info-table" id="projectInfoTable">
+            <tr>
+                <td class="label">Заказчик:</td>
+                <td class="value" id="infoClient">-</td>
+                <td class="label">Объект:</td>
+                <td class="value" id="infoObject">-</td>
+                <td class="label">Срок, дней:</td>
+                <td class="value" id="infoDuration">-</td>
+            </tr>
+            <tr>
+                <td class="label">Аванс, %:</td>
+                <td class="value" id="infoAdvance">-</td>
+                <td class="label">Местоположение:</td>
+                <td class="value" id="infoLocation">-</td>
+                <td class="label">Координаты:</td>
+                <td class="value" id="infoCoordinates">-</td>
+            </tr>
+        </table>
+
+        <!-- Tabs -->
+        <div class="detail-tabs">
+            <div class="detail-tab active" data-tab="estimate" onclick="switchTab('estimate')">Смета</div>
+            <div class="detail-tab" data-tab="constructions" onclick="switchTab('constructions')">Конструкции</div>
+        </div>
+
+        <!-- Estimate Tab Content -->
+        <div class="tab-content active" id="estimateTab">
+            <div class="controls-row">
+                <button class="btn btn-primary btn-sm" onclick="addEstimateRow()">+ Добавить строку</button>
+            </div>
+            <div class="estimate-table-container">
+                <table class="estimate-table">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Наименование работ</th>
+                            <th>К-во</th>
+                            <th>Ед. изм.</th>
+                            <th>Цена</th>
+                            <th>Сумма</th>
+                            <th>Виды работ</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="estimateTableBody">
+                        <!-- Estimate rows will be loaded here -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="totals-row">
+                            <td colspan="5" style="text-align: right;">Итого:</td>
+                            <td class="sum-cell" id="estimateTotalSum">0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Constructions Tab Content -->
+        <div class="tab-content" id="constructionsTab">
+            <div class="controls-row">
+                <button class="btn btn-primary btn-sm" onclick="addConstructionRow()">+ Добавить строку</button>
+            </div>
+            <div class="constructions-table-container">
+                <table class="constructions-table">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Конструкция</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="constructionsTableBody">
+                        <!-- Construction rows will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Project Modal -->
+<div class="modal-backdrop" id="projectModalBackdrop" onclick="closeProjectModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5 id="projectModalTitle">Редактировать проект</h5>
+        <form id="projectForm">
+            <input type="hidden" id="projectId">
+
+            <div class="form-group">
+                <label for="projectName">Проект *</label>
+                <input type="text" class="form-control-custom" id="projectName" required>
+            </div>
+
+            <div class="form-group">
+                <label for="projectDescription">Описание</label>
+                <textarea class="form-control-custom" id="projectDescription"></textarea>
+            </div>
+
+            <div class="form-group-with-button">
+                <div class="form-group">
+                    <label for="projectClient">Заказчик</label>
+                    <select class="form-control-custom" id="projectClient">
+                        <option value="">Выберите заказчика</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary btn-icon" onclick="showAddClientModal()" title="Добавить нового заказчика">+</button>
+            </div>
+
+            <div class="form-group-with-button">
+                <div class="form-group">
+                    <label for="projectObject">Объект</label>
+                    <select class="form-control-custom" id="projectObject">
+                        <option value="">Выберите объект</option>
+                    </select>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary btn-icon" onclick="showAddObjectModal()" title="Добавить новый объект">+</button>
+            </div>
+
+            <div class="form-group">
+                <label for="projectStart">Старт</label>
+                <input type="date" class="form-control-custom" id="projectStart">
+            </div>
+
+            <div class="form-group">
+                <label for="projectDuration">Срок (календарных дней)</label>
+                <input type="number" class="form-control-custom" id="projectDuration" min="1" step="1">
+            </div>
+
+            <div class="form-group">
+                <label for="projectDeadline">Окончание</label>
+                <input type="date" class="form-control-custom" id="projectDeadline">
+            </div>
+
+            <div class="btn-group-custom">
+                <button type="button" class="btn btn-outline-secondary" onclick="closeProjectModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Estimate Row Modal -->
+<div class="modal-backdrop" id="deleteEstimateModalBackdrop" onclick="closeDeleteEstimateModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5>Подтверждение удаления</h5>
+        <p>Вы уверены, что хотите удалить эту строку сметы?</p>
+        <div class="btn-group-custom">
+            <button type="button" class="btn btn-outline-secondary" onclick="closeDeleteEstimateModal()">Отмена</button>
+            <button type="button" class="btn btn-danger" onclick="confirmDeleteEstimateRow()">Удалить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Construction Row Modal -->
+<div class="modal-backdrop" id="deleteConstructionModalBackdrop" onclick="closeDeleteConstructionModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5>Подтверждение удаления</h5>
+        <p>Вы уверены, что хотите удалить эту строку конструкции?</p>
+        <div class="btn-group-custom">
+            <button type="button" class="btn btn-outline-secondary" onclick="closeDeleteConstructionModal()">Отмена</button>
+            <button type="button" class="btn btn-danger" onclick="confirmDeleteConstructionRow()">Удалить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Client Modal -->
+<div class="modal-backdrop" id="clientModalBackdrop" onclick="closeClientModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5>Добавить заказчика</h5>
+        <form id="clientForm">
+            <div class="form-group">
+                <label for="clientName">Название заказчика *</label>
+                <input type="text" class="form-control-custom" id="clientName" required>
+            </div>
+            <div class="btn-group-custom">
+                <button type="button" class="btn btn-outline-secondary" onclick="closeClientModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Object Modal -->
+<div class="modal-backdrop" id="objectModalBackdrop" onclick="closeObjectModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5>Добавить объект</h5>
+        <form id="objectForm">
+            <div class="form-group">
+                <label for="objectName">Название объекта *</label>
+                <input type="text" class="form-control-custom" id="objectName" required>
+            </div>
+            <div class="form-group">
+                <label for="objectCoordinates">Координаты</label>
+                <input type="text" class="form-control-custom" id="objectCoordinates" placeholder="55.7558, 37.6173">
+            </div>
+            <div class="btn-group-custom">
+                <button type="button" class="btn btn-outline-secondary" onclick="closeObjectModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Work Type Selector (dynamically positioned) -->
+<div class="work-type-selector hidden" id="workTypeSelector">
+    <div class="selector-header">
+        <strong>Добавить вид работ</strong>
+        <button class="close-selector" onclick="closeWorkTypeSelector()">&times;</button>
+    </div>
+    <div class="form-group">
+        <label>Направление</label>
+        <select id="selectorDirection" onchange="onSelectorDirectionChange()">
+            <option value="">Все направления</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Вид работ</label>
+        <input type="text" class="search-input" id="selectorWorkTypeSearch" placeholder="Поиск..." oninput="filterSelectorWorkTypes()">
+        <select id="selectorWorkType" size="6" style="height: auto;">
+        </select>
+    </div>
+    <button type="button" class="btn btn-primary add-btn" onclick="addSelectedWorkType()">Добавить</button>
+</div>
+
+<script>
+    // Load project.js dynamically
+    (function() {
+        var script = document.createElement('script');
+        script.src = 'https://' + window.location.host + '/download/' + db + '/js/project.js?' + Math.random();
+        script.onload = function() {
+            if (typeof initProjectWorkspace === 'function') {
+                initProjectWorkspace();
+            }
+        };
+        document.head.appendChild(script);
+    })();
+</script>
