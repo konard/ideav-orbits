@@ -40,6 +40,9 @@ function initProjectWorkspace() {
     // Setup form handlers
     setupFormHandlers();
 
+    // Initialize work type selector size from cookies
+    initWorkTypeSelectorSize();
+
     // Setup click outside handler for work type selector
     document.addEventListener('click', function(e) {
         const selector = document.getElementById('workTypeSelector');
@@ -136,7 +139,7 @@ function populateSelectorDropdowns() {
     directionNames.forEach((name, id) => {
         const option = document.createElement('option');
         option.value = id;
-        option.textContent = `Направление ${id}`;
+        option.textContent = id;
         directionSelect.appendChild(option);
     });
 }
@@ -533,11 +536,20 @@ function populateWorkTypesList() {
         );
     }
 
+    // Filter out already added work types for current estimate row
+    if (currentWorkTypeRow) {
+        const row = estimateData.find(r => r['СметаID'] === currentWorkTypeRow);
+        if (row) {
+            const existingWorkTypes = row['Виды работ'] ? row['Виды работ'].split(',').filter(Boolean) : [];
+            filtered = filtered.filter(wt => !existingWorkTypes.includes(wt['Вид работID']));
+        }
+    }
+
     // Populate options
     filtered.forEach(wt => {
         const option = document.createElement('option');
         option.value = wt['Вид работID'];
-        option.textContent = `${wt['Направление'] || '?'}/${wt['Вид работ']}`;
+        option.textContent = `${wt['Вид работ']} / ${wt['Направление'] || '?'}`;
         select.appendChild(option);
     });
 }
@@ -570,16 +582,37 @@ function addSelectedWorkType() {
         return;
     }
 
-    // Add new work type
-    currentWorkTypes.push(selectedId);
-    row['Виды работ'] = currentWorkTypes.join(',');
+    // Save to server via POST _m_set/{estimateId}?JSON&t6850={workTypeId}
+    const estimateId = currentWorkTypeRow;
+    fetch(`https://${window.location.host}/${db}/_m_set/${estimateId}?JSON&t6850=${selectedId}`, {
+        method: 'POST',
+        credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.obj) {
+            // Store the created record ID for later deletion
+            if (!row['workTypeRecordIds']) {
+                row['workTypeRecordIds'] = {};
+            }
+            row['workTypeRecordIds'][selectedId] = data.obj;
 
-    // Save to server
-    saveEstimateWorkTypes(currentWorkTypeRow, row['Виды работ']);
+            // Add new work type to local data
+            currentWorkTypes.push(selectedId);
+            row['Виды работ'] = currentWorkTypes.join(',');
 
-    // Refresh display
-    displayEstimateTable(estimateData);
-    closeWorkTypeSelector();
+            // Refresh display
+            displayEstimateTable(estimateData);
+            closeWorkTypeSelector();
+        } else {
+            console.error('Failed to add work type:', data);
+            alert('Ошибка при добавлении вида работ');
+        }
+    })
+    .catch(error => {
+        console.error('Error adding work type:', error);
+        alert('Ошибка при добавлении вида работ');
+    });
 }
 
 /**
@@ -1202,4 +1235,54 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Cookie helper functions for work type selector size
+ */
+function setCookie(name, value, days) {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+}
+
+function getCookie(name) {
+    const nameEQ = name + '=';
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+        let c = ca[i].trim();
+        if (c.indexOf(nameEQ) === 0) {
+            return c.substring(nameEQ.length);
+        }
+    }
+    return null;
+}
+
+/**
+ * Initialize work type selector size from cookies
+ */
+function initWorkTypeSelectorSize() {
+    const selector = document.getElementById('workTypeSelector');
+    if (!selector) return;
+
+    const savedWidth = getCookie('workTypeSelectorWidth');
+    const savedHeight = getCookie('workTypeSelectorHeight');
+
+    if (savedWidth) {
+        selector.style.width = savedWidth + 'px';
+    }
+    if (savedHeight) {
+        selector.style.height = savedHeight + 'px';
+    }
+
+    // Save size on resize
+    const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+            if (!selector.classList.contains('hidden')) {
+                setCookie('workTypeSelectorWidth', entry.contentRect.width, 365);
+                setCookie('workTypeSelectorHeight', entry.contentRect.height, 365);
+            }
+        }
+    });
+    resizeObserver.observe(selector);
 }

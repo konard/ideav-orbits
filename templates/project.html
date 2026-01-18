@@ -347,7 +347,13 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         z-index: 1000;
         min-width: 350px;
-        max-width: 450px;
+        resize: both;
+        overflow: auto;
+    }
+
+    .work-type-selector::-webkit-resizer {
+        background: linear-gradient(135deg, transparent 50%, #ced4da 50%);
+        border-radius: 0 0 4px 0;
     }
 
     .work-type-selector .selector-header {
