@@ -9,6 +9,8 @@ let selectedProject = null;
 let projectInfo = null;
 let estimateData = [];
 let constructionsData = [];
+let constructionEstimatePositions = []; // Data from report/7148
+let constructionProducts = []; // Data from report/6503
 let workTypesReference = [];
 let dictionaries = {
     clients: [],
@@ -1040,31 +1042,39 @@ function confirmDeleteEstimateRow() {
 }
 
 /**
- * Load constructions data
+ * Load constructions data with nested estimate positions and products
  */
 function loadConstructionsData(projectId) {
-    fetch(`https://${window.location.host}/${db}/report/6665?JSON_KV&FR_ProjectID=${projectId}`)
-        .then(response => response.json())
-        .then(data => {
-            constructionsData = data;
-            displayConstructionsTable(data);
-        })
-        .catch(error => {
-            console.error('Error loading constructions data:', error);
-            constructionsData = [];
-            displayConstructionsTable([]);
-        });
+    // Load all three datasets in parallel
+    Promise.all([
+        fetch(`https://${window.location.host}/${db}/report/6665?JSON_KV&FR_ProjectID=${projectId}`).then(r => r.json()),
+        fetch(`https://${window.location.host}/${db}/report/7148?JSON_KV&FR_ProjectID=${projectId}`).then(r => r.json()),
+        fetch(`https://${window.location.host}/${db}/report/6503?JSON_KV&FR_ProjectID=${projectId}`).then(r => r.json())
+    ])
+    .then(([constructions, estimatePositions, products]) => {
+        constructionsData = constructions || [];
+        constructionEstimatePositions = estimatePositions || [];
+        constructionProducts = products || [];
+        displayConstructionsTable(constructionsData);
+    })
+    .catch(error => {
+        console.error('Error loading constructions data:', error);
+        constructionsData = [];
+        constructionEstimatePositions = [];
+        constructionProducts = [];
+        displayConstructionsTable([]);
+    });
 }
 
 /**
- * Display constructions table
+ * Display constructions table with nested estimate positions and products
  */
 function displayConstructionsTable(data) {
     const tbody = document.getElementById('constructionsTableBody');
     if (!tbody) return;
 
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #6c757d; padding: 20px;">Нет данных о конструкциях</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="no-data-cell">Нет данных о конструкциях</td></tr>';
         return;
     }
 
@@ -1076,22 +1086,107 @@ function displayConstructionsTable(data) {
     });
 
     tbody.innerHTML = sortedData.map((row, index) => {
+        const constructionId = row['КонструкцияID'];
+
+        // Get estimate positions for this construction
+        const estimatePositions = constructionEstimatePositions.filter(
+            ep => ep['КонструкцияID'] == constructionId
+        );
+
+        // Build nested estimate positions table
+        const estimatePositionsHtml = buildEstimatePositionsTable(estimatePositions);
+
         return `
-            <tr data-construction-id="${row['КонструкцияID']}" data-order="${row['КонструкцияOrder']}" draggable="true">
+            <tr data-construction-id="${constructionId}" data-order="${row['КонструкцияOrder'] || ''}">
                 <td class="row-number">${index + 1}</td>
-                <td>
-                    <input type="text" value="${escapeHtml(row['Конструкция'] || '')}"
-                           onchange="updateConstructionField('${row['КонструкцияID']}', 'name', this.value)">
-                </td>
-                <td class="row-actions">
-                    <button class="btn btn-danger btn-sm btn-delete-row" onclick="deleteConstructionRow('${row['КонструкцияID']}')">Удалить</button>
-                </td>
+                <td>${escapeHtml(row['Конструкция'] || '—')}</td>
+                <td>${escapeHtml(row['Документация по конструкции'] || '—')}</td>
+                <td>${escapeHtml(row['Захватка'] || '—')}</td>
+                <td>${escapeHtml(row['Оси'] || '—')}</td>
+                <td>${escapeHtml(row['Высотные отметки'] || '—')}</td>
+                <td>${escapeHtml(row['Этаж'] || '—')}</td>
+                <td>${estimatePositionsHtml}</td>
             </tr>
         `;
     }).join('');
+}
 
-    // Add drag handlers
-    addConstructionsDragHandlers();
+/**
+ * Build nested estimate positions table HTML
+ */
+function buildEstimatePositionsTable(positions) {
+    if (!positions || positions.length === 0) {
+        return '<div class="no-data-cell">—</div>';
+    }
+
+    let html = '<div class="nested-table-container"><table class="nested-table">';
+    html += '<thead><tr><th>Позиция сметы</th><th>Изделия</th></tr></thead>';
+    html += '<tbody>';
+
+    positions.forEach(pos => {
+        const estimateId = pos['Смета проектаID'];
+
+        // Get products for this estimate position
+        const products = constructionProducts.filter(
+            p => p['Смета проектаID'] == estimateId
+        );
+
+        const productsHtml = buildProductsTable(products);
+
+        html += `<tr>
+            <td>${escapeHtml(pos['Смета проекта'] || '—')}</td>
+            <td>${productsHtml}</td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    return html;
+}
+
+/**
+ * Build nested products table HTML
+ */
+function buildProductsTable(products) {
+    if (!products || products.length === 0) {
+        return '<span class="no-data-cell">—</span>';
+    }
+
+    let html = '<table class="products-table">';
+    html += '<thead><tr>';
+    html += '<th>Изделие</th>';
+    html += '<th>Маркировка</th>';
+    html += '<th>Документация</th>';
+    html += '<th>Высота от пола</th>';
+    html += '<th>Длина</th>';
+    html += '<th>Высота</th>';
+    html += '<th>Периметр</th>';
+    html += '<th>Площадь</th>';
+    html += '<th>Вес м²/кг</th>';
+    html += '<th>Вес одной</th>';
+    html += '<th>Ед.изм.</th>';
+    html += '<th>Кол-во</th>';
+    html += '</tr></thead>';
+    html += '<tbody>';
+
+    products.forEach(prod => {
+        html += `<tr>
+            <td>${escapeHtml(prod['Изделие'] || '—')}</td>
+            <td>${escapeHtml(prod['Маркировка'] || '—')}</td>
+            <td>${escapeHtml(prod['Документация по изделию'] || '—')}</td>
+            <td>${escapeHtml(prod['Высота от пола мм'] || '—')}</td>
+            <td>${escapeHtml(prod['Длина мм'] || '—')}</td>
+            <td>${escapeHtml(prod['Высота мм'] || '—')}</td>
+            <td>${escapeHtml(prod['Периметр м'] || '—')}</td>
+            <td>${escapeHtml(prod['Площадь м2'] || '—')}</td>
+            <td>${escapeHtml(prod['Вес м2/кг'] || '—')}</td>
+            <td>${escapeHtml(prod['Вес одной'] || '—')}</td>
+            <td>${escapeHtml(prod['Ед. изм'] || '—')}</td>
+            <td>${escapeHtml(prod['Количество'] || '—')}</td>
+        </tr>`;
+    });
+
+    html += '</tbody></table>';
+    return html;
 }
 
 /**

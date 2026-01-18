@@ -462,17 +462,23 @@
         white-space: nowrap;
     }
 
-    .constructions-table th:first-child { width: 50px; text-align: center; }
-    .constructions-table th:nth-child(2) { min-width: 300px; }
-    .constructions-table th:last-child { width: 100px; text-align: center; }
+    .constructions-table th:first-child { width: 40px; text-align: center; }
+    .constructions-table th:nth-child(2) { min-width: 150px; }
+    .constructions-table th:nth-child(3) { min-width: 100px; }
+    .constructions-table th:nth-child(4) { min-width: 80px; }
+    .constructions-table th:nth-child(5) { min-width: 80px; }
+    .constructions-table th:nth-child(6) { min-width: 100px; }
+    .constructions-table th:nth-child(7) { min-width: 60px; }
+    .constructions-table th:last-child { min-width: 300px; }
 
     .constructions-table td {
         padding: 8px;
         border-bottom: 1px solid #dee2e6;
+        vertical-align: top;
     }
 
     .constructions-table tbody tr {
-        cursor: move;
+        cursor: default;
     }
 
     .constructions-table tbody tr:hover {
@@ -500,6 +506,63 @@
 
     .constructions-table .row-actions {
         text-align: center;
+    }
+
+    /* Nested tables styles */
+    .nested-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        margin: 0;
+    }
+
+    .nested-table th {
+        padding: 4px 6px;
+        background-color: #e9ecef;
+        border: 1px solid #dee2e6;
+        font-weight: 600;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+
+    .nested-table td {
+        padding: 4px 6px;
+        border: 1px solid #dee2e6;
+        vertical-align: top;
+    }
+
+    .nested-table-container {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+
+    .products-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+        margin-top: 4px;
+    }
+
+    .products-table th {
+        padding: 3px 4px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        font-weight: 500;
+        font-size: 10px;
+    }
+
+    .products-table td {
+        padding: 3px 4px;
+        border: 1px solid #dee2e6;
+    }
+
+    .no-data-cell {
+        color: #6c757d;
+        font-style: italic;
+        text-align: center;
+        padding: 8px;
     }
 
     /* Totals row */
@@ -724,16 +787,18 @@
 
         <!-- Constructions Tab Content -->
         <div class="tab-content" id="constructionsTab">
-            <div class="controls-row">
-                <button class="btn btn-primary btn-sm" onclick="addConstructionRow()">+ Добавить строку</button>
-            </div>
             <div class="constructions-table-container">
                 <table class="constructions-table">
                     <thead>
                         <tr>
                             <th>№</th>
                             <th>Конструкция</th>
-                            <th>Действия</th>
+                            <th>Документация</th>
+                            <th>Захватка</th>
+                            <th>Оси</th>
+                            <th>Высотные отметки</th>
+                            <th>Этаж</th>
+                            <th>Позиции сметы</th>
                         </tr>
                     </thead>
                     <tbody id="constructionsTableBody">
