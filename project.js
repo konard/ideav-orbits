@@ -608,7 +608,7 @@ function addSelectedWorkType() {
 
     // Save to server via POST _m_set/{estimateId}?JSON&t6850={workTypeId}
     const estimateId = currentWorkTypeRow;
-    fetch(`https://${window.location.host}/${db}/_m_set/${estimateId}?JSON&t6850=${selectedId}`, {
+    fetch(`https://${window.location.host}/${db}/_m_set/${estimateId}?JSON&t6850=${selectedId}&_xsrf=${xsrf}`, {
         method: 'POST',
         credentials: 'include'
     })
@@ -706,7 +706,7 @@ function updateEstimateField(estimateId, field, value) {
 
     // Save to server if not a new row
     if (!row['isNew'] && apiParam) {
-        fetch(`https://${window.location.host}/${db}/_m_set/${estimateId}?JSON&${apiParam}`, {
+        fetch(`https://${window.location.host}/${db}/_m_set/${estimateId}?JSON&${apiParam}&_xsrf=${xsrf}`, {
             method: 'POST',
             credentials: 'include'
         })
@@ -729,7 +729,7 @@ function handleEstimateNameBlur(estimateId, value) {
 
     // If this is a new row and name is filled, save to DB
     if (row['isNew'] && value && value.trim()) {
-        fetch(`https://${window.location.host}/${db}/_m_new/678?JSON&up=${selectedProject['ПроектID']}&t678=${encodeURIComponent(value)}`, {
+        fetch(`https://${window.location.host}/${db}/_m_new/678?JSON&up=${selectedProject['ПроектID']}&t678=${encodeURIComponent(value)}&_xsrf=${xsrf}`, {
             method: 'POST',
             credentials: 'include'
         })
@@ -769,7 +769,7 @@ function deleteEstimateRowDirect(estimateId) {
     }
 
     // Delete from server
-    fetch(`https://${window.location.host}/${db}/_m_del/${estimateId}?JSON`, {
+    fetch(`https://${window.location.host}/${db}/_m_del/${estimateId}?JSON&_xsrf=${xsrf}`, {
         method: 'POST',
         credentials: 'include'
     })
@@ -954,7 +954,7 @@ function confirmDeleteEstimateRow() {
     }
 
     // Delete from server
-    fetch(`https://${window.location.host}/${db}/_m_del/${estimateId}?JSON`, {
+    fetch(`https://${window.location.host}/${db}/_m_del/${estimateId}?JSON&_xsrf=${xsrf}`, {
         method: 'POST',
         credentials: 'include'
     })
