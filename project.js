@@ -411,9 +411,9 @@ function displayEstimateTable(data) {
         const isNewRow = row['isNew'] && !row['Смета'];
         const hiddenStyle = isNewRow ? 'style="visibility: hidden;"' : '';
 
-        // Build units dropdown options
+        // Build units dropdown options (compare by ID for reliable selection)
         const unitOptions = dictionaries.units.map(u =>
-            `<option value="${u['Ед.изм.ID']}" ${u['Ед.изм.'] === row['Ед.изм.'] ? 'selected' : ''}>${escapeHtml(u['Ед.изм.'])}</option>`
+            `<option value="${u['Ед.изм.ID']}" ${u['Ед.изм.ID'] == row['Ед.изм.ID'] ? 'selected' : ''}>${escapeHtml(u['Ед.изм.'])}</option>`
         ).join('');
 
         return `
