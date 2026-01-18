@@ -580,6 +580,56 @@
         background-color: #f0f7ff;
     }
 
+    /* Column visibility controls */
+    .column-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+    }
+
+    .column-controls-label {
+        font-size: 13px;
+        color: #6c757d;
+    }
+
+    .column-toggle-group {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: #f8f9fa;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+
+    .column-toggle-group label {
+        font-size: 12px;
+        margin: 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .column-toggle-group input[type="checkbox"] {
+        cursor: pointer;
+    }
+
+    .column-toggle-all {
+        font-weight: 500;
+        border-right: 1px solid #dee2e6;
+        padding-right: 8px;
+        margin-right: 3px;
+    }
+
+    /* Hidden column styles */
+    .constructions-table th.col-hidden,
+    .constructions-table td.col-hidden {
+        display: none;
+    }
+
     /* Totals row */
     .totals-row {
         background-color: #f8f9fa;
@@ -802,17 +852,32 @@
 
         <!-- Constructions Tab Content -->
         <div class="tab-content" id="constructionsTab">
+            <!-- Column visibility controls -->
+            <div class="column-controls">
+                <span class="column-controls-label">Колонки:</span>
+                <div class="column-toggle-group">
+                    <label class="column-toggle-all">
+                        <input type="checkbox" id="toggleAllHideable" checked onchange="toggleAllHideableColumns(this.checked)">
+                        Все
+                    </label>
+                    <label><input type="checkbox" data-col="doc" checked onchange="toggleColumn('doc', this.checked)"> Документация</label>
+                    <label><input type="checkbox" data-col="zahvatka" checked onchange="toggleColumn('zahvatka', this.checked)"> Захватка</label>
+                    <label><input type="checkbox" data-col="osi" checked onchange="toggleColumn('osi', this.checked)"> Оси</label>
+                    <label><input type="checkbox" data-col="vysotm" checked onchange="toggleColumn('vysotm', this.checked)"> Выс.отм.</label>
+                    <label><input type="checkbox" data-col="etazh" checked onchange="toggleColumn('etazh', this.checked)"> Этаж</label>
+                </div>
+            </div>
             <div class="constructions-table-container">
                 <table class="constructions-table">
                     <thead>
                         <tr>
                             <th>№</th>
                             <th class="col-construction">Конструкция</th>
-                            <th class="col-construction">Документация</th>
-                            <th class="col-construction">Захватка</th>
-                            <th class="col-construction">Оси</th>
-                            <th class="col-construction">Выс.отм.</th>
-                            <th class="col-construction">Этаж</th>
+                            <th class="col-construction" data-col="doc">Документация</th>
+                            <th class="col-construction" data-col="zahvatka">Захватка</th>
+                            <th class="col-construction" data-col="osi">Оси</th>
+                            <th class="col-construction" data-col="vysotm">Выс.отм.</th>
+                            <th class="col-construction" data-col="etazh">Этаж</th>
                             <th class="col-estimate">Позиция сметы</th>
                             <th class="col-product">Изделие</th>
                             <th class="col-product">Маркировка</th>

@@ -46,6 +46,9 @@ function initProjectWorkspace() {
     // Initialize work type selector size from cookies
     initWorkTypeSelectorSize();
 
+    // Load column visibility preferences
+    loadColumnVisibility();
+
     // Setup click outside handler for work type selector
     document.addEventListener('click', function(e) {
         const selector = document.getElementById('workTypeSelector');
@@ -1111,6 +1114,9 @@ function displayConstructionsTable(data) {
     });
 
     tbody.innerHTML = html;
+
+    // Apply saved column visibility to newly rendered cells
+    applyColumnVisibility();
 }
 
 /**
@@ -1150,13 +1156,14 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
 
             // Construction cells (only on first row)
             if (isFirstRowOfConstruction) {
-                html += `<td class="row-number" ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${rowNumber}</td>`;
-                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
-                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
-                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
-                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Оси'] || '—')}</td>`;
-                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
-                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Этаж'] || '—')}</td>`;
+                const rs = totalRows > 1 ? `rowspan="${totalRows}"` : '';
+                html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
+                html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
+                html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
+                html += `<td data-col="zahvatka" ${rs}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
+                html += `<td data-col="osi" ${rs}>${escapeHtml(construction['Оси'] || '—')}</td>`;
+                html += `<td data-col="vysotm" ${rs}>${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
+                html += `<td data-col="etazh" ${rs}>${escapeHtml(construction['Этаж'] || '—')}</td>`;
                 isFirstRowOfConstruction = false;
             }
 
@@ -1174,13 +1181,14 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
 
                 // Construction cells (only on first row of entire construction)
                 if (isFirstRowOfConstruction) {
-                    html += `<td class="row-number" ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${rowNumber}</td>`;
-                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
-                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
-                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
-                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Оси'] || '—')}</td>`;
-                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
-                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Этаж'] || '—')}</td>`;
+                    const rs = totalRows > 1 ? `rowspan="${totalRows}"` : '';
+                    html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
+                    html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
+                    html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
+                    html += `<td data-col="zahvatka" ${rs}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
+                    html += `<td data-col="osi" ${rs}>${escapeHtml(construction['Оси'] || '—')}</td>`;
+                    html += `<td data-col="vysotm" ${rs}>${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
+                    html += `<td data-col="etazh" ${rs}>${escapeHtml(construction['Этаж'] || '—')}</td>`;
                     isFirstRowOfConstruction = false;
                 }
 
@@ -1631,4 +1639,147 @@ function initWorkTypeSelectorSize() {
         }
     });
     resizeObserver.observe(selector);
+}
+
+/**
+ * Column visibility management for Constructions table
+ */
+const HIDEABLE_COLUMNS = ['doc', 'zahvatka', 'osi', 'vysotm', 'etazh'];
+const COLUMN_VISIBILITY_KEY = 'constructionsColumnVisibility';
+
+/**
+ * Toggle visibility of a single column
+ */
+function toggleColumn(colName, visible) {
+    // Update header
+    const headerCell = document.querySelector(`.constructions-table th[data-col="${colName}"]`);
+    if (headerCell) {
+        headerCell.classList.toggle('col-hidden', !visible);
+    }
+
+    // Update body cells
+    document.querySelectorAll(`.constructions-table td[data-col="${colName}"]`).forEach(cell => {
+        cell.classList.toggle('col-hidden', !visible);
+    });
+
+    // Save to localStorage
+    saveColumnVisibility();
+
+    // Update "All" checkbox state
+    updateToggleAllCheckbox();
+}
+
+/**
+ * Toggle all hideable columns at once
+ */
+function toggleAllHideableColumns(visible) {
+    HIDEABLE_COLUMNS.forEach(colName => {
+        // Update checkbox
+        const checkbox = document.querySelector(`.column-controls input[data-col="${colName}"]`);
+        if (checkbox) {
+            checkbox.checked = visible;
+        }
+
+        // Update header
+        const headerCell = document.querySelector(`.constructions-table th[data-col="${colName}"]`);
+        if (headerCell) {
+            headerCell.classList.toggle('col-hidden', !visible);
+        }
+
+        // Update body cells
+        document.querySelectorAll(`.constructions-table td[data-col="${colName}"]`).forEach(cell => {
+            cell.classList.toggle('col-hidden', !visible);
+        });
+    });
+
+    // Save to localStorage
+    saveColumnVisibility();
+}
+
+/**
+ * Update the "All" checkbox based on individual checkbox states
+ */
+function updateToggleAllCheckbox() {
+    const allCheckbox = document.getElementById('toggleAllHideable');
+    if (!allCheckbox) return;
+
+    const allChecked = HIDEABLE_COLUMNS.every(colName => {
+        const checkbox = document.querySelector(`.column-controls input[data-col="${colName}"]`);
+        return checkbox && checkbox.checked;
+    });
+
+    const noneChecked = HIDEABLE_COLUMNS.every(colName => {
+        const checkbox = document.querySelector(`.column-controls input[data-col="${colName}"]`);
+        return checkbox && !checkbox.checked;
+    });
+
+    allCheckbox.checked = allChecked;
+    allCheckbox.indeterminate = !allChecked && !noneChecked;
+}
+
+/**
+ * Save column visibility to localStorage
+ */
+function saveColumnVisibility() {
+    const visibility = {};
+    HIDEABLE_COLUMNS.forEach(colName => {
+        const checkbox = document.querySelector(`.column-controls input[data-col="${colName}"]`);
+        visibility[colName] = checkbox ? checkbox.checked : true;
+    });
+    localStorage.setItem(COLUMN_VISIBILITY_KEY, JSON.stringify(visibility));
+}
+
+/**
+ * Load column visibility from localStorage and apply
+ */
+function loadColumnVisibility() {
+    const saved = localStorage.getItem(COLUMN_VISIBILITY_KEY);
+    if (!saved) return;
+
+    try {
+        const visibility = JSON.parse(saved);
+        HIDEABLE_COLUMNS.forEach(colName => {
+            if (visibility.hasOwnProperty(colName)) {
+                const visible = visibility[colName];
+
+                // Update checkbox
+                const checkbox = document.querySelector(`.column-controls input[data-col="${colName}"]`);
+                if (checkbox) {
+                    checkbox.checked = visible;
+                }
+
+                // Update header
+                const headerCell = document.querySelector(`.constructions-table th[data-col="${colName}"]`);
+                if (headerCell) {
+                    headerCell.classList.toggle('col-hidden', !visible);
+                }
+            }
+        });
+
+        // Update "All" checkbox state
+        updateToggleAllCheckbox();
+    } catch (e) {
+        console.error('Error loading column visibility:', e);
+    }
+}
+
+/**
+ * Apply column visibility to newly rendered table body
+ */
+function applyColumnVisibility() {
+    const saved = localStorage.getItem(COLUMN_VISIBILITY_KEY);
+    if (!saved) return;
+
+    try {
+        const visibility = JSON.parse(saved);
+        HIDEABLE_COLUMNS.forEach(colName => {
+            if (visibility.hasOwnProperty(colName) && !visibility[colName]) {
+                document.querySelectorAll(`.constructions-table td[data-col="${colName}"]`).forEach(cell => {
+                    cell.classList.add('col-hidden');
+                });
+            }
+        });
+    } catch (e) {
+        console.error('Error applying column visibility:', e);
+    }
 }
