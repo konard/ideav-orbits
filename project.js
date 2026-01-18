@@ -1077,14 +1077,14 @@ function loadConstructionsData(projectId) {
 }
 
 /**
- * Display constructions table with nested estimate positions and products
+ * Display constructions table with flattened rows using rowspan
  */
 function displayConstructionsTable(data) {
     const tbody = document.getElementById('constructionsTableBody');
     if (!tbody) return;
 
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="no-data-cell">Нет данных о конструкциях</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="20" class="no-data-cell">Нет данных о конструкциях</td></tr>';
         return;
     }
 
@@ -1095,110 +1095,120 @@ function displayConstructionsTable(data) {
         return orderA - orderB;
     });
 
-    tbody.innerHTML = sortedData.map((row, index) => {
+    let html = '';
+
+    sortedData.forEach((row, index) => {
         const constructionId = row['КонструкцияID'];
 
-        // Get estimate positions for this construction (convert to string for reliable comparison)
+        // Get estimate positions for this construction
         const estimatePositions = constructionEstimatePositions.filter(
             ep => String(ep['КонструкцияID']) === String(constructionId)
         );
 
-        // Debug logging
-        console.log(`Construction ${constructionId}: found ${estimatePositions.length} estimate positions`);
+        // Build flat rows for this construction
+        const flatRows = buildFlatConstructionRows(row, estimatePositions, index + 1);
+        html += flatRows;
+    });
 
-        // Build nested estimate positions table
-        const estimatePositionsHtml = buildEstimatePositionsTable(estimatePositions);
-
-        return `
-            <tr data-construction-id="${constructionId}" data-order="${row['КонструкцияOrder'] || ''}">
-                <td class="row-number">${index + 1}</td>
-                <td>${escapeHtml(row['Конструкция'] || '—')}</td>
-                <td>${escapeHtml(row['Документация по конструкции'] || '—')}</td>
-                <td>${escapeHtml(row['Захватка'] || '—')}</td>
-                <td>${escapeHtml(row['Оси'] || '—')}</td>
-                <td>${escapeHtml(row['Высотные отметки'] || '—')}</td>
-                <td>${escapeHtml(row['Этаж'] || '—')}</td>
-                <td>${estimatePositionsHtml}</td>
-            </tr>
-        `;
-    }).join('');
+    tbody.innerHTML = html;
 }
 
 /**
- * Build nested estimate positions table HTML
+ * Build flat rows for a construction with rowspan for merged cells
  */
-function buildEstimatePositionsTable(positions) {
-    if (!positions || positions.length === 0) {
-        return '<div class="no-data-cell">—</div>';
+function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
+    // Calculate total rows needed for this construction
+    let totalRows = 0;
+    const positionData = [];
+
+    if (estimatePositions.length === 0) {
+        // No estimate positions - single row with empty product cells
+        totalRows = 1;
+        positionData.push({ position: null, products: [], rowCount: 1 });
+    } else {
+        estimatePositions.forEach(pos => {
+            const estimateId = pos['Позиция сметыID'];
+            const products = constructionProducts.filter(
+                p => String(p['Позиция сметыID']) === String(estimateId)
+            );
+            const rowCount = Math.max(1, products.length);
+            totalRows += rowCount;
+            positionData.push({ position: pos, products, rowCount });
+        });
     }
 
-    let html = '<div class="nested-table-container"><table class="nested-table">';
-    html += '<thead><tr><th>Позиция сметы</th><th>Изделия</th></tr></thead>';
-    html += '<tbody>';
+    let html = '';
+    let isFirstRowOfConstruction = true;
 
-    positions.forEach(pos => {
-        const estimateId = pos['Позиция сметыID'];
+    positionData.forEach((pd, posIndex) => {
+        const { position, products, rowCount } = pd;
+        let isFirstRowOfPosition = true;
 
-        // Get products for this estimate position (convert to string for reliable comparison)
-        const products = constructionProducts.filter(
-            p => String(p['Позиция сметыID']) === String(estimateId)
-        );
+        if (products.length === 0) {
+            // No products - single row with empty product cells
+            html += '<tr>';
 
-        const productsHtml = buildProductsTable(products);
+            // Construction cells (only on first row)
+            if (isFirstRowOfConstruction) {
+                html += `<td class="row-number" ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${rowNumber}</td>`;
+                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
+                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
+                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
+                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Оси'] || '—')}</td>`;
+                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
+                html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Этаж'] || '—')}</td>`;
+                isFirstRowOfConstruction = false;
+            }
 
-        html += `<tr>
-            <td>${escapeHtml(pos['Позиция сметы'] || '—')}</td>
-            <td>${productsHtml}</td>
-        </tr>`;
+            // Estimate position cell
+            html += `<td class="estimate-cell">${position ? escapeHtml(position['Позиция сметы'] || '—') : '—'}</td>`;
+
+            // Empty product cells
+            html += '<td class="product-cell">—</td>'.repeat(12);
+
+            html += '</tr>';
+        } else {
+            // Has products - create row for each product
+            products.forEach((prod, prodIndex) => {
+                html += '<tr>';
+
+                // Construction cells (only on first row of entire construction)
+                if (isFirstRowOfConstruction) {
+                    html += `<td class="row-number" ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${rowNumber}</td>`;
+                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
+                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
+                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
+                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Оси'] || '—')}</td>`;
+                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
+                    html += `<td ${totalRows > 1 ? `rowspan="${totalRows}"` : ''}>${escapeHtml(construction['Этаж'] || '—')}</td>`;
+                    isFirstRowOfConstruction = false;
+                }
+
+                // Estimate position cell (only on first row of this position)
+                if (isFirstRowOfPosition) {
+                    html += `<td class="estimate-cell" ${rowCount > 1 ? `rowspan="${rowCount}"` : ''}>${escapeHtml(position['Позиция сметы'] || '—')}</td>`;
+                    isFirstRowOfPosition = false;
+                }
+
+                // Product cells
+                html += `<td class="product-cell">${escapeHtml(prod['Изделие'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Маркировка'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Документация по изделию'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Высота от пола мм'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Длина мм'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Высота мм'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Периметр м'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Площадь м2'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Вес м2/кг'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Вес одной'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Ед. изм'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Количество'] || '—')}</td>`;
+
+                html += '</tr>';
+            });
+        }
     });
 
-    html += '</tbody></table></div>';
-    return html;
-}
-
-/**
- * Build nested products table HTML
- */
-function buildProductsTable(products) {
-    if (!products || products.length === 0) {
-        return '<span class="no-data-cell">—</span>';
-    }
-
-    let html = '<table class="products-table">';
-    html += '<thead><tr>';
-    html += '<th>Изделие</th>';
-    html += '<th>Маркировка</th>';
-    html += '<th>Документация</th>';
-    html += '<th>Высота от пола</th>';
-    html += '<th>Длина</th>';
-    html += '<th>Высота</th>';
-    html += '<th>Периметр</th>';
-    html += '<th>Площадь</th>';
-    html += '<th>Вес м²/кг</th>';
-    html += '<th>Вес одной</th>';
-    html += '<th>Ед.изм.</th>';
-    html += '<th>Кол-во</th>';
-    html += '</tr></thead>';
-    html += '<tbody>';
-
-    products.forEach(prod => {
-        html += `<tr>
-            <td>${escapeHtml(prod['Изделие'] || '—')}</td>
-            <td>${escapeHtml(prod['Маркировка'] || '—')}</td>
-            <td>${escapeHtml(prod['Документация по изделию'] || '—')}</td>
-            <td>${escapeHtml(prod['Высота от пола мм'] || '—')}</td>
-            <td>${escapeHtml(prod['Длина мм'] || '—')}</td>
-            <td>${escapeHtml(prod['Высота мм'] || '—')}</td>
-            <td>${escapeHtml(prod['Периметр м'] || '—')}</td>
-            <td>${escapeHtml(prod['Площадь м2'] || '—')}</td>
-            <td>${escapeHtml(prod['Вес м2/кг'] || '—')}</td>
-            <td>${escapeHtml(prod['Вес одной'] || '—')}</td>
-            <td>${escapeHtml(prod['Ед. изм'] || '—')}</td>
-            <td>${escapeHtml(prod['Количество'] || '—')}</td>
-        </tr>`;
-    });
-
-    html += '</tbody></table>';
     return html;
 }
 

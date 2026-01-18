@@ -463,13 +463,10 @@
     }
 
     .constructions-table th:first-child { width: 40px; text-align: center; }
-    .constructions-table th:nth-child(2) { min-width: 150px; }
-    .constructions-table th:nth-child(3) { min-width: 100px; }
-    .constructions-table th:nth-child(4) { min-width: 80px; }
-    .constructions-table th:nth-child(5) { min-width: 80px; }
-    .constructions-table th:nth-child(6) { min-width: 100px; }
-    .constructions-table th:nth-child(7) { min-width: 60px; }
-    .constructions-table th:last-child { min-width: 300px; }
+    .constructions-table th { min-width: 60px; }
+    .constructions-table th.col-construction { min-width: 120px; }
+    .constructions-table th.col-estimate { min-width: 120px; background-color: #e7f3ff; }
+    .constructions-table th.col-product { min-width: 80px; background-color: #fff3cd; }
 
     .constructions-table td {
         padding: 8px;
@@ -563,6 +560,24 @@
         font-style: italic;
         text-align: center;
         padding: 8px;
+    }
+
+    /* Merged cell styles */
+    .constructions-table td[rowspan] {
+        vertical-align: middle;
+        border-right: 2px solid #dee2e6;
+    }
+
+    .constructions-table td.estimate-cell {
+        background-color: #f8fbff;
+    }
+
+    .constructions-table td.product-cell {
+        background-color: #fffef8;
+    }
+
+    .constructions-table tbody tr:hover td {
+        background-color: #f0f7ff;
     }
 
     /* Totals row */
@@ -792,13 +807,25 @@
                     <thead>
                         <tr>
                             <th>№</th>
-                            <th>Конструкция</th>
-                            <th>Документация</th>
-                            <th>Захватка</th>
-                            <th>Оси</th>
-                            <th>Высотные отметки</th>
-                            <th>Этаж</th>
-                            <th>Позиции сметы</th>
+                            <th class="col-construction">Конструкция</th>
+                            <th class="col-construction">Документация</th>
+                            <th class="col-construction">Захватка</th>
+                            <th class="col-construction">Оси</th>
+                            <th class="col-construction">Выс.отм.</th>
+                            <th class="col-construction">Этаж</th>
+                            <th class="col-estimate">Позиция сметы</th>
+                            <th class="col-product">Изделие</th>
+                            <th class="col-product">Маркировка</th>
+                            <th class="col-product">Докум.</th>
+                            <th class="col-product">Выс.пола</th>
+                            <th class="col-product">Длина</th>
+                            <th class="col-product">Высота</th>
+                            <th class="col-product">Периметр</th>
+                            <th class="col-product">Площадь</th>
+                            <th class="col-product">Вес м²</th>
+                            <th class="col-product">Вес 1шт</th>
+                            <th class="col-product">Ед.изм.</th>
+                            <th class="col-product">Кол-во</th>
                         </tr>
                     </thead>
                     <tbody id="constructionsTableBody">
