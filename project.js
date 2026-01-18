@@ -14,6 +14,7 @@ let dictionaries = {
     clients: [],
     objects: [],
     directions: [],
+    units: [],
     workTypesMap: new Map()
 };
 
@@ -75,6 +76,14 @@ function loadDictionaries() {
             populateSelect('projectObject', data, 'Объект', 'Объект ID');
         })
         .catch(error => console.error('Error loading objects:', error));
+
+    // Load units (Единицы измерения)
+    fetch(`https://${window.location.host}/${db}/_l/17?JSON`)
+        .then(response => response.json())
+        .then(data => {
+            dictionaries.units = data.list || [];
+        })
+        .catch(error => console.error('Error loading units:', error));
 }
 
 /**
@@ -396,31 +405,46 @@ function displayEstimateTable(data) {
         const workTypesIds = row['Виды работ'] ? row['Виды работ'].split(',').filter(Boolean) : [];
         const workTypesBadges = renderWorkTypesBadges(workTypesIds, row['СметаID']);
 
+        // Check if this is a new row (name not filled yet)
+        const isNewRow = row['isNew'] && !row['Смета'];
+        const hiddenStyle = isNewRow ? 'style="visibility: hidden;"' : '';
+
+        // Build units dropdown options
+        const unitOptions = dictionaries.units.map(u =>
+            `<option value="${u.id}" ${u.value === row['Ед.изм.'] ? 'selected' : ''}>${escapeHtml(u.value)}</option>`
+        ).join('');
+
         return `
             <tr data-estimate-id="${row['СметаID']}" data-order="${row['СметаOrder']}" draggable="true">
                 <td class="row-number">${index + 1}</td>
                 <td>
                     <input type="text" value="${escapeHtml(row['Смета'] || '')}"
-                           onchange="updateEstimateField('${row['СметаID']}', 'name', this.value)">
+                           onchange="updateEstimateField('${row['СметаID']}', 'name', this.value)"
+                           onblur="handleEstimateNameBlur('${row['СметаID']}', this.value)">
                 </td>
-                <td>
+                <td ${hiddenStyle}>
                     <input type="number" value="${quantity || ''}" step="0.01"
                            onchange="updateEstimateField('${row['СметаID']}', 'quantity', this.value); recalculateEstimateSum('${row['СметаID']}')">
                 </td>
-                <td>${escapeHtml(row['Ед.изм.'] || '')}</td>
-                <td>
+                <td ${hiddenStyle}>
+                    <select onchange="updateEstimateField('${row['СметаID']}', 'unit', this.value)">
+                        <option value="">—</option>
+                        ${unitOptions}
+                    </select>
+                </td>
+                <td ${hiddenStyle}>
                     <input type="number" value="${price || ''}" step="0.01"
                            onchange="updateEstimateField('${row['СметаID']}', 'price', this.value); recalculateEstimateSum('${row['СметаID']}')">
                 </td>
-                <td class="sum-cell" data-sum="${sum}">${sum > 0 ? sum.toFixed(2) : ''}</td>
-                <td>
+                <td class="sum-cell" data-sum="${sum}" ${hiddenStyle}>${sum > 0 ? sum.toFixed(2) : ''}</td>
+                <td ${hiddenStyle}>
                     <div class="work-types-cell" data-estimate-id="${row['СметаID']}">
                         ${workTypesBadges}
                         <button class="add-work-type-btn" onclick="showWorkTypeSelector(event, '${row['СметаID']}')" title="Добавить вид работ">+</button>
                     </div>
                 </td>
                 <td class="row-actions">
-                    <button class="btn btn-danger btn-sm btn-delete-row" onclick="deleteEstimateRow('${row['СметаID']}')">Удалить</button>
+                    <button class="btn-delete-row" onclick="deleteEstimateRow('${row['СметаID']}')" title="Удалить">🗑</button>
                 </td>
             </tr>
         `;
@@ -655,20 +679,109 @@ function updateEstimateField(estimateId, field, value) {
     const row = estimateData.find(r => r['СметаID'] === estimateId);
     if (!row) return;
 
+    // Skip if row is new (not yet saved to DB)
+    if (row['isNew'] && field !== 'name') return;
+
+    let apiParam = '';
     switch (field) {
         case 'name':
             row['Смета'] = value;
+            apiParam = `t678=${encodeURIComponent(value)}`;
             break;
         case 'quantity':
             row['К-во'] = value;
+            apiParam = `t1030=${encodeURIComponent(value)}`;
+            break;
+        case 'unit':
+            row['Ед.изм.ID'] = value;
+            const unit = dictionaries.units.find(u => u.id == value);
+            if (unit) row['Ед.изм.'] = unit.value;
+            apiParam = `t1036=${encodeURIComponent(value)}`;
             break;
         case 'price':
             row['Цена за ед.'] = value;
+            apiParam = `t6456=${encodeURIComponent(value)}`;
             break;
     }
 
-    // TODO: Save to server
-    console.log(`Updating estimate ${estimateId}, ${field}:`, value);
+    // Save to server if not a new row
+    if (!row['isNew'] && apiParam) {
+        fetch(`https://${window.location.host}/${db}/_m_set/${estimateId}?JSON&${apiParam}`, {
+            method: 'POST',
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(`Saved estimate field ${field}:`, data);
+        })
+        .catch(error => {
+            console.error(`Error saving estimate field ${field}:`, error);
+        });
+    }
+}
+
+/**
+ * Handle estimate name blur - create or delete row based on name
+ */
+function handleEstimateNameBlur(estimateId, value) {
+    const row = estimateData.find(r => r['СметаID'] === estimateId);
+    if (!row) return;
+
+    // If this is a new row and name is filled, save to DB
+    if (row['isNew'] && value && value.trim()) {
+        fetch(`https://${window.location.host}/${db}/_m_new/678?JSON&up=${selectedProject['ПроектID']}&t678=${encodeURIComponent(value)}`, {
+            method: 'POST',
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.obj) {
+                // Update local row with real ID
+                row['СметаID'] = data.obj;
+                row['isNew'] = false;
+                row['Смета'] = value;
+                // Refresh display to show all fields
+                displayEstimateTable(estimateData);
+            }
+        })
+        .catch(error => {
+            console.error('Error creating estimate row:', error);
+        });
+    }
+    // If existing row and name is cleared, delete the row
+    else if (!row['isNew'] && (!value || !value.trim())) {
+        deleteEstimateRowDirect(estimateId);
+    }
+}
+
+/**
+ * Delete estimate row directly without confirmation
+ */
+function deleteEstimateRowDirect(estimateId) {
+    const row = estimateData.find(r => r['СметаID'] === estimateId);
+    if (!row) return;
+
+    // If it's a new row that hasn't been saved, just remove from local data
+    if (row['isNew']) {
+        estimateData = estimateData.filter(r => r['СметаID'] !== estimateId);
+        displayEstimateTable(estimateData);
+        return;
+    }
+
+    // Delete from server
+    fetch(`https://${window.location.host}/${db}/_m_del/${estimateId}?JSON`, {
+        method: 'POST',
+        credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Deleted estimate row:', data);
+        estimateData = estimateData.filter(r => r['СметаID'] !== estimateId);
+        displayEstimateTable(estimateData);
+    })
+    .catch(error => {
+        console.error('Error deleting estimate row:', error);
+    });
 }
 
 /**
@@ -788,10 +901,7 @@ function saveEstimateOrder() {
 function addEstimateRow() {
     if (!selectedProject) return;
 
-    // TODO: Implement API call to create new estimate row
-    console.log('Adding new estimate row for project:', selectedProject['ПроектID']);
-
-    // For now, add a placeholder row
+    // Create a new placeholder row - will be saved to DB when name is filled
     const newRow = {
         'СметаID': 'new_' + Date.now(),
         'СметаOrder': (estimateData.length + 1).toString(),
@@ -799,11 +909,18 @@ function addEstimateRow() {
         'К-во': '',
         'Цена за ед.': '',
         'Ед.изм.': '',
-        'Виды работ': ''
+        'Виды работ': '',
+        'isNew': true  // Mark as new row
     };
 
     estimateData.push(newRow);
     displayEstimateTable(estimateData);
+
+    // Focus on the name input of the new row
+    setTimeout(() => {
+        const newRowEl = document.querySelector(`tr[data-estimate-id="${newRow['СметаID']}"] input[type="text"]`);
+        if (newRowEl) newRowEl.focus();
+    }, 100);
 }
 
 /**
@@ -825,14 +942,35 @@ function confirmDeleteEstimateRow() {
         return;
     }
 
-    // TODO: Implement API call to delete
-    console.log('Deleting estimate row:', pendingDeleteEstimateRowId);
+    const estimateId = pendingDeleteEstimateRowId;
+    const row = estimateData.find(r => r['СметаID'] === estimateId);
 
-    // Remove from local data
-    estimateData = estimateData.filter(r => r['СметаID'] !== pendingDeleteEstimateRowId);
-    displayEstimateTable(estimateData);
+    // If it's a new row, just remove from local data
+    if (row && row['isNew']) {
+        estimateData = estimateData.filter(r => r['СметаID'] !== estimateId);
+        displayEstimateTable(estimateData);
+        closeDeleteEstimateModal();
+        return;
+    }
 
-    closeDeleteEstimateModal();
+    // Delete from server
+    fetch(`https://${window.location.host}/${db}/_m_del/${estimateId}?JSON`, {
+        method: 'POST',
+        credentials: 'include'
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Deleted estimate row:', data);
+        estimateData = estimateData.filter(r => r['СметаID'] !== estimateId);
+        displayEstimateTable(estimateData);
+    })
+    .catch(error => {
+        console.error('Error deleting estimate row:', error);
+        alert('Ошибка при удалении строки');
+    })
+    .finally(() => {
+        closeDeleteEstimateModal();
+    });
 }
 
 /**
