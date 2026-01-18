@@ -1066,6 +1066,12 @@ function loadConstructionsData(projectId) {
 
         if (constructionEstimatePositions.length > 0) {
             console.log('Sample estimate position:', constructionEstimatePositions[0]);
+            console.log('Estimate position fields:', Object.keys(constructionEstimatePositions[0]));
+        }
+
+        if (constructionProducts.length > 0) {
+            console.log('Sample product:', constructionProducts[0]);
+            console.log('Product fields:', Object.keys(constructionProducts[0]));
         }
 
         displayConstructionsTable(constructionsData);
@@ -1134,9 +1140,11 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
     } else {
         estimatePositions.forEach(pos => {
             const estimateId = pos['Позиция сметыID'];
-            const products = constructionProducts.filter(
-                p => String(p['Позиция сметыID']) === String(estimateId)
-            );
+            // Filter products by estimate position ID (try both possible field names)
+            const products = constructionProducts.filter(p => {
+                const productPositionId = p['Позиция сметыID'] || p['Смета проектаID'];
+                return String(productPositionId) === String(estimateId);
+            });
             const rowCount = Math.max(1, products.length);
             totalRows += rowCount;
             positionData.push({ position: pos, products, rowCount });
@@ -1198,17 +1206,17 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                     isFirstRowOfPosition = false;
                 }
 
-                // Product cells
+                // Product cells (using field names from API with fallbacks)
                 html += `<td class="product-cell">${escapeHtml(prod['Изделие'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Маркировка'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Документация по изделию'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Документация'] || prod['Документация по изделию'] || prod['Вид документации'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Высота от пола мм'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Длина мм'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Высота мм'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Периметр м'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Площадь м2'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Вес м2/кг'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Вес одной'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Длина, м'] || prod['Длина мм'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Высота, м'] || prod['Высота мм'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Периметр'] || prod['Периметр м'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Площадь, м2'] || prod['Площадь м2'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Вес на м2, кг'] || prod['Вес м2/кг'] || '—')}</td>`;
+                html += `<td class="product-cell">${escapeHtml(prod['Вес, кг'] || prod['Вес одной'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Ед. изм'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Количество'] || '—')}</td>`;
 
