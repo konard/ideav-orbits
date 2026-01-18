@@ -924,18 +924,38 @@ function updateEstimateRowNumbers() {
 
 /**
  * Save estimate order to server
+ * Only saves the order of the dragged element, backend recalculates others
  */
 function saveEstimateOrder() {
-    const rows = document.querySelectorAll('#estimateTableBody tr');
-    const orders = [];
+    if (!draggedEstimateRow) return;
 
-    rows.forEach((row, index) => {
-        const estimateId = row.dataset.estimateId;
-        orders.push({ id: estimateId, order: index + 1 });
+    const rows = Array.from(document.querySelectorAll('#estimateTableBody tr'));
+    const estimateId = draggedEstimateRow.dataset.estimateId;
+    const newOrder = rows.indexOf(draggedEstimateRow) + 1;
+
+    // Skip if it's a new row (not yet saved to DB)
+    if (estimateId.startsWith('new_')) {
+        console.log('Skipping order save for new row');
+        return;
+    }
+
+    // Save order using _m_ord endpoint
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+    formData.append('order', newOrder);
+
+    fetch(`https://${window.location.host}/${db}/_m_ord/${estimateId}?JSON`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Saved estimate order:', { id: estimateId, order: newOrder, response: data });
+    })
+    .catch(error => {
+        console.error('Error saving estimate order:', error);
     });
-
-    // TODO: Implement actual API call
-    console.log('Saving estimate order:', orders);
 }
 
 /**
