@@ -300,12 +300,14 @@ function updateProjectHeader() {
     // Calculate duration in days
     let duration = '-';
     if (projectInfo['Старт'] && projectInfo['Срок']) {
-        const start = new Date(projectInfo['Старт']);
-        const end = new Date(projectInfo['Срок']);
-        const diffTime = end - start;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        if (diffDays >= 0) {
-            duration = diffDays;
+        const start = parseDate(projectInfo['Старт']);
+        const end = parseDate(projectInfo['Срок']);
+        if (start && end) {
+            const diffTime = end - start;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays >= 0) {
+                duration = diffDays;
+            }
         }
     }
     document.getElementById('infoDuration').textContent = duration;
@@ -1220,21 +1222,27 @@ function showEditProjectModal() {
 
     // Set dates
     if (selectedProject['Старт']) {
-        const startDate = new Date(selectedProject['Старт']);
-        document.getElementById('projectStart').value = startDate.toISOString().split('T')[0];
+        const startDate = parseDate(selectedProject['Старт']);
+        if (startDate) {
+            document.getElementById('projectStart').value = startDate.toISOString().split('T')[0];
+        }
     }
 
     if (selectedProject['Срок']) {
-        const endDate = new Date(selectedProject['Срок']);
-        document.getElementById('projectDeadline').value = endDate.toISOString().split('T')[0];
+        const endDate = parseDate(selectedProject['Срок']);
+        if (endDate) {
+            document.getElementById('projectDeadline').value = endDate.toISOString().split('T')[0];
+        }
     }
 
     // Calculate duration
     if (selectedProject['Старт'] && selectedProject['Срок']) {
-        const start = new Date(selectedProject['Старт']);
-        const end = new Date(selectedProject['Срок']);
-        const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-        document.getElementById('projectDuration').value = diffDays >= 0 ? diffDays : '';
+        const start = parseDate(selectedProject['Старт']);
+        const end = parseDate(selectedProject['Срок']);
+        if (start && end) {
+            const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+            document.getElementById('projectDuration').value = diffDays >= 0 ? diffDays : '';
+        }
     }
 
     document.getElementById('projectModalBackdrop').classList.add('show');
@@ -1399,6 +1407,24 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Parse date string in DD.MM.YYYY format (or fallback to standard Date parsing)
+ */
+function parseDate(dateStr) {
+    if (!dateStr) return null;
+
+    // Check if date is in DD.MM.YYYY format
+    const ddmmyyyyMatch = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (ddmmyyyyMatch) {
+        const [, day, month, year] = ddmmyyyyMatch;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+
+    // Fallback to standard Date parsing
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? null : date;
 }
 
 /**
