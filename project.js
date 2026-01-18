@@ -1137,17 +1137,17 @@ function buildEstimatePositionsTable(positions) {
     html += '<tbody>';
 
     positions.forEach(pos => {
-        const estimateId = pos['Смета проектаID'];
+        const estimateId = pos['Позиция сметыID'];
 
         // Get products for this estimate position (convert to string for reliable comparison)
         const products = constructionProducts.filter(
-            p => String(p['Смета проектаID']) === String(estimateId)
+            p => String(p['Позиция сметыID']) === String(estimateId)
         );
 
         const productsHtml = buildProductsTable(products);
 
         html += `<tr>
-            <td>${escapeHtml(pos['Смета проекта'] || '—')}</td>
+            <td>${escapeHtml(pos['Позиция сметы'] || '—')}</td>
             <td>${productsHtml}</td>
         </tr>`;
     });
