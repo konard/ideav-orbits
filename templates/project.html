@@ -868,6 +868,7 @@
                     <label><input type="checkbox" data-col="osi" checked onchange="toggleColumn('osi', this.checked)"> Оси</label>
                     <label><input type="checkbox" data-col="vysotm" checked onchange="toggleColumn('vysotm', this.checked)"> Выс.отм.</label>
                     <label><input type="checkbox" data-col="etazh" checked onchange="toggleColumn('etazh', this.checked)"> Этаж</label>
+                    <label><input type="checkbox" id="toggleProductDetails" checked onchange="toggleProductDetailsColumns(this.checked)"> Детали изделий</label>
                 </div>
             </div>
             <div class="constructions-table-container">
@@ -888,13 +889,13 @@
                             <th class="col-product">Изделие</th>
                             <th class="col-product">Маркировка</th>
                             <th class="col-product">Докум.</th>
-                            <th class="col-product">Выс.пола</th>
-                            <th class="col-product">Длина</th>
-                            <th class="col-product">Высота</th>
-                            <th class="col-product">Периметр</th>
-                            <th class="col-product">Площадь</th>
-                            <th class="col-product">Вес м²</th>
-                            <th class="col-product">Вес 1шт</th>
+                            <th class="col-product" data-col="product-detail">Выс.пола</th>
+                            <th class="col-product" data-col="product-detail">Длина</th>
+                            <th class="col-product" data-col="product-detail">Высота</th>
+                            <th class="col-product" data-col="product-detail">Периметр</th>
+                            <th class="col-product" data-col="product-detail">Площадь</th>
+                            <th class="col-product" data-col="product-detail">Вес м²</th>
+                            <th class="col-product" data-col="product-detail">Вес 1шт</th>
                             <th class="col-product">Ед.изм.</th>
                             <th class="col-product">Кол-во</th>
                         </tr>

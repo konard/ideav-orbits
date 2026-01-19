@@ -49,6 +49,9 @@ function initProjectWorkspace() {
     // Load column visibility preferences
     loadColumnVisibility();
 
+    // Load product details visibility preferences
+    initializeProductDetailsVisibility();
+
     // Setup click outside handler for work type selector
     document.addEventListener('click', function(e) {
         const selector = document.getElementById('workTypeSelector');
@@ -1123,6 +1126,7 @@ function displayConstructionsTable(data) {
 
     // Apply saved column visibility to newly rendered cells
     applyColumnVisibility();
+    applyProductDetailsVisibility();
 }
 
 /**
@@ -1186,7 +1190,18 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
 
             // Empty product checkbox and cells
             html += '<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" disabled></td>';
-            html += '<td class="product-cell">—</td>'.repeat(12);
+            html += '<td class="product-cell">—</td>'; // Изделие
+            html += '<td class="product-cell">—</td>'; // Маркировка
+            html += '<td class="product-cell">—</td>'; // Докум.
+            html += '<td class="product-cell" data-col="product-detail">—</td>'; // Выс.пола
+            html += '<td class="product-cell" data-col="product-detail">—</td>'; // Длина
+            html += '<td class="product-cell" data-col="product-detail">—</td>'; // Высота
+            html += '<td class="product-cell" data-col="product-detail">—</td>'; // Периметр
+            html += '<td class="product-cell" data-col="product-detail">—</td>'; // Площадь
+            html += '<td class="product-cell" data-col="product-detail">—</td>'; // Вес м²
+            html += '<td class="product-cell" data-col="product-detail">—</td>'; // Вес 1шт
+            html += '<td class="product-cell">—</td>'; // Ед.изм.
+            html += '<td class="product-cell">—</td>'; // Кол-во
 
             html += '</tr>';
         } else {
@@ -1225,13 +1240,13 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 html += `<td class="product-cell" title="Позиция сметыID: ${prodPositionId}">${escapeHtml(prod['Изделие'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Маркировка'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Документация'] || prod['Документация по изделию'] || prod['Вид документации'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Высота от пола мм'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Длина, м'] || prod['Длина мм'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Высота, м'] || prod['Высота мм'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Периметр'] || prod['Периметр м'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Площадь, м2'] || prod['Площадь м2'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Вес на м2, кг'] || prod['Вес м2/кг'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Вес, кг'] || prod['Вес одной'] || '—')}</td>`;
+                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Высота от пола мм'] || '—')}</td>`;
+                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Длина, м'] || prod['Длина мм'] || '—')}</td>`;
+                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Высота, м'] || prod['Высота мм'] || '—')}</td>`;
+                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Периметр'] || prod['Периметр м'] || '—')}</td>`;
+                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Площадь, м2'] || prod['Площадь м2'] || '—')}</td>`;
+                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Вес на м2, кг'] || prod['Вес м2/кг'] || '—')}</td>`;
+                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Вес, кг'] || prod['Вес одной'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Ед. изм'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Количество'] || '—')}</td>`;
 
@@ -1815,4 +1830,63 @@ function toggleColumnCheckboxes(type, checked) {
     checkboxes.forEach(cb => {
         cb.checked = checked;
     });
+}
+
+/**
+ * Product details column visibility management
+ */
+const PRODUCT_DETAILS_KEY = 'productDetailsVisible';
+
+/**
+ * Toggle product details columns visibility
+ */
+function toggleProductDetailsColumns(visible) {
+    // Update header cells
+    document.querySelectorAll('.constructions-table th[data-col="product-detail"]').forEach(cell => {
+        cell.classList.toggle('col-hidden', !visible);
+    });
+
+    // Update body cells
+    document.querySelectorAll('.constructions-table td[data-col="product-detail"]').forEach(cell => {
+        cell.classList.toggle('col-hidden', !visible);
+    });
+
+    // Save to localStorage
+    localStorage.setItem(PRODUCT_DETAILS_KEY, visible ? 'true' : 'false');
+}
+
+/**
+ * Initialize product details visibility from localStorage
+ */
+function initializeProductDetailsVisibility() {
+    const saved = localStorage.getItem(PRODUCT_DETAILS_KEY);
+    const visible = saved !== 'false'; // Default to visible
+
+    // Update checkbox
+    const checkbox = document.getElementById('toggleProductDetails');
+    if (checkbox) {
+        checkbox.checked = visible;
+    }
+
+    // Apply visibility
+    if (!visible) {
+        document.querySelectorAll('.constructions-table th[data-col="product-detail"]').forEach(cell => {
+            cell.classList.add('col-hidden');
+        });
+        document.querySelectorAll('.constructions-table td[data-col="product-detail"]').forEach(cell => {
+            cell.classList.add('col-hidden');
+        });
+    }
+}
+
+/**
+ * Apply product details visibility to newly rendered table body
+ */
+function applyProductDetailsVisibility() {
+    const saved = localStorage.getItem(PRODUCT_DETAILS_KEY);
+    if (saved === 'false') {
+        document.querySelectorAll('.constructions-table td[data-col="product-detail"]').forEach(cell => {
+            cell.classList.add('col-hidden');
+        });
+    }
 }
