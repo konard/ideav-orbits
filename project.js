@@ -1138,12 +1138,15 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
         totalRows = 1;
         positionData.push({ position: null, products: [], rowCount: 1 });
     } else {
+        const constructionId = construction['КонструкцияID'];
         estimatePositions.forEach(pos => {
             const estimateId = pos['Позиция сметыID'];
-            // Filter products by estimate position ID (try both possible field names)
+            // Filter products by BOTH construction ID AND estimate position ID
             const products = constructionProducts.filter(p => {
+                const productConstructionId = p['КонструкцияID'];
                 const productPositionId = p['Позиция сметыID'] || p['Смета проектаID'];
-                return String(productPositionId) === String(estimateId);
+                return String(productConstructionId) === String(constructionId) &&
+                       String(productPositionId) === String(estimateId);
             });
             const rowCount = Math.max(1, products.length);
             totalRows += rowCount;
