@@ -1130,7 +1130,7 @@
         <button class="close-selector" onclick="closeProductSelector()">&times;</button>
     </div>
     <input type="text" class="search-input" id="productSelectorSearch" placeholder="Поиск изделия..." oninput="filterProductSelector()">
-    <select id="productSelectorList" size="8" style="height: auto;">
+    <select id="productSelectorList" size="8" style="height: auto;" ondblclick="addSelectedProduct()">
     </select>
     <button type="button" class="btn btn-primary add-btn" onclick="addSelectedProduct()">Добавить</button>
 </div>
