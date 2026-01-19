@@ -2009,12 +2009,18 @@ function addSelectedProduct() {
     // Create product via API: POST _m_new/6133?JSON&up={КонструкцияID}&t7009={Позиция сметыID}
     const url = `https://${window.location.host}/${db}/_m_new/6133?JSON&up=${constructionId}&t7009=${estimatePositionId}`;
 
+    // Build request body with XSRF token
+    let body = `6133=${productId}`;
+    if (typeof xsrf !== 'undefined' && xsrf) {
+        body += `&xsrf=${encodeURIComponent(xsrf)}`;
+    }
+
     fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: `6133=${productId}`
+        body: body
     })
     .then(response => response.json())
     .then(data => {
