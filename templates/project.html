@@ -725,14 +725,6 @@
         display: none !important;
     }
 
-    /* Small gray ID hint text */
-    .id-hint {
-        display: block;
-        font-size: 10px;
-        color: #999;
-        margin-top: 2px;
-    }
-
     /* Delete button styles */
     .btn-delete-row {
         padding: 4px 8px;
@@ -883,16 +875,16 @@
                     <thead>
                         <tr>
                             <th>№</th>
-                            <th class="col-checkbox" title="Выбрать конструкцию">☑К</th>
+                            <th class="col-checkbox" title="Выбрать все конструкции"><input type="checkbox" class="compact-checkbox" id="checkAllConstructions" onchange="toggleColumnCheckboxes('construction', this.checked)"></th>
                             <th class="col-construction">Конструкция</th>
                             <th class="col-construction" data-col="doc">Документация</th>
                             <th class="col-construction" data-col="zahvatka">Захватка</th>
                             <th class="col-construction" data-col="osi">Оси</th>
                             <th class="col-construction" data-col="vysotm">Выс.отм.</th>
                             <th class="col-construction" data-col="etazh">Этаж</th>
-                            <th class="col-checkbox" title="Выбрать позицию сметы">☑П</th>
+                            <th class="col-checkbox" title="Выбрать все позиции сметы"><input type="checkbox" class="compact-checkbox" id="checkAllEstimates" onchange="toggleColumnCheckboxes('estimate', this.checked)"></th>
                             <th class="col-estimate">Позиция сметы</th>
-                            <th class="col-checkbox" title="Выбрать изделие">☑И</th>
+                            <th class="col-checkbox" title="Выбрать все изделия"><input type="checkbox" class="compact-checkbox" id="checkAllProducts" onchange="toggleColumnCheckboxes('product', this.checked)"></th>
                             <th class="col-product">Изделие</th>
                             <th class="col-product">Маркировка</th>
                             <th class="col-product">Докум.</th>
