@@ -25,6 +25,10 @@ let currentWorkTypeRow = null;
 let pendingDeleteEstimateRowId = null;
 let pendingDeleteConstructionRowId = null;
 
+// Products reference data and current selection context
+let allProductsReference = [];
+let currentProductAddContext = null; // {constructionId, estimatePositionId}
+
 /**
  * Initialize the project workspace
  */
@@ -38,6 +42,7 @@ function initProjectWorkspace() {
     // Load all necessary data
     loadDictionaries();
     loadWorkTypesReference();
+    loadAllProductsReference();
     loadProjects();
 
     // Setup form handlers
@@ -58,6 +63,13 @@ function initProjectWorkspace() {
         if (selector && !selector.classList.contains('hidden')) {
             if (!selector.contains(e.target) && !e.target.classList.contains('add-work-type-btn')) {
                 closeWorkTypeSelector();
+            }
+        }
+        // Also handle product selector
+        const productSelector = document.getElementById('productSelector');
+        if (productSelector && !productSelector.classList.contains('hidden')) {
+            if (!productSelector.contains(e.target) && !e.target.classList.contains('add-product-icon')) {
+                closeProductSelector();
             }
         }
     });
@@ -106,6 +118,19 @@ function loadWorkTypesReference() {
             populateSelectorDropdowns();
         })
         .catch(error => console.error('Error loading work types reference:', error));
+}
+
+/**
+ * Load all products reference (Все Изделия)
+ */
+function loadAllProductsReference() {
+    fetch(`https://${window.location.host}/${db}/report/7202?JSON_KV`)
+        .then(response => response.json())
+        .then(data => {
+            allProductsReference = data;
+            populateProductSelector();
+        })
+        .catch(error => console.error('Error loading products reference:', error));
 }
 
 /**
@@ -1185,8 +1210,9 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
 
             // Estimate position checkbox and cell (with tooltip showing position ID)
             const posId = position ? (position['Позиция сметыID'] || '?') : '';
+            const constId = construction['КонструкцияID'];
             html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${posId}" ${position ? '' : 'disabled'}></td>`;
-            html += `<td class="estimate-cell" title="Позиция сметыID: ${posId}">${position ? escapeHtml(position['Позиция сметы'] || '—') : '—'}</td>`;
+            html += `<td class="estimate-cell" title="Позиция сметыID: ${posId}">${position ? escapeHtml(position['Позиция сметы'] || '—') + `<span class="add-product-icon" onclick="showProductSelector(event, '${constId}', '${posId}')" title="Добавить изделие">+</span>` : '—'}</td>`;
 
             // Empty product checkbox and cells
             html += '<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" disabled></td>';
@@ -1226,9 +1252,10 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 // Estimate position checkbox and cell (only on first row of this position, with tooltip showing position ID)
                 if (isFirstRowOfPosition) {
                     const positionId = position['Позиция сметыID'] || '?';
+                    const constIdForIcon = construction['КонструкцияID'];
                     const rsPos = rowCount > 1 ? `rowspan="${rowCount}"` : '';
                     html += `<td class="col-checkbox" ${rsPos}><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${positionId}"></td>`;
-                    html += `<td class="estimate-cell" title="Позиция сметыID: ${positionId}" ${rsPos}>${escapeHtml(position['Позиция сметы'] || '—')}</td>`;
+                    html += `<td class="estimate-cell" title="Позиция сметыID: ${positionId}" ${rsPos}>${escapeHtml(position['Позиция сметы'] || '—')}<span class="add-product-icon" onclick="showProductSelector(event, '${constIdForIcon}', '${positionId}')" title="Добавить изделие">+</span></td>`;
                     isFirstRowOfPosition = false;
                 }
 
@@ -1889,4 +1916,120 @@ function applyProductDetailsVisibility() {
             cell.classList.add('col-hidden');
         });
     }
+}
+
+/**
+ * Populate the product selector dropdown
+ */
+function populateProductSelector() {
+    const select = document.getElementById('productSelectorList');
+    if (!select) return;
+
+    select.innerHTML = '';
+    allProductsReference.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product['ИзделиеID'] || product['ID'] || '';
+        option.textContent = product['Изделие'] || product['Название'] || 'Без названия';
+        option.dataset.name = (product['Изделие'] || '').toLowerCase();
+        select.appendChild(option);
+    });
+}
+
+/**
+ * Show the product selector at the click position
+ */
+function showProductSelector(event, constructionId, estimatePositionId) {
+    event.stopPropagation();
+
+    currentProductAddContext = {
+        constructionId: constructionId,
+        estimatePositionId: estimatePositionId
+    };
+
+    const selector = document.getElementById('productSelector');
+    if (!selector) return;
+
+    // Position near the click
+    const rect = event.target.getBoundingClientRect();
+    selector.style.position = 'fixed';
+    selector.style.left = `${rect.right + 5}px`;
+    selector.style.top = `${rect.top}px`;
+
+    // Reset search and show
+    const searchInput = document.getElementById('productSelectorSearch');
+    if (searchInput) searchInput.value = '';
+    filterProductSelector();
+
+    selector.classList.remove('hidden');
+
+    // Focus search input
+    if (searchInput) searchInput.focus();
+}
+
+/**
+ * Close the product selector
+ */
+function closeProductSelector() {
+    const selector = document.getElementById('productSelector');
+    if (selector) {
+        selector.classList.add('hidden');
+    }
+    currentProductAddContext = null;
+}
+
+/**
+ * Filter products in the selector based on search input
+ */
+function filterProductSelector() {
+    const searchInput = document.getElementById('productSelectorSearch');
+    const select = document.getElementById('productSelectorList');
+    if (!searchInput || !select) return;
+
+    const searchTerm = searchInput.value.toLowerCase();
+
+    Array.from(select.options).forEach(option => {
+        const name = option.dataset.name || option.textContent.toLowerCase();
+        option.style.display = name.includes(searchTerm) ? '' : 'none';
+    });
+}
+
+/**
+ * Add the selected product to the construction/estimate position
+ */
+function addSelectedProduct() {
+    const select = document.getElementById('productSelectorList');
+    if (!select || !select.value || !currentProductAddContext) {
+        alert('Выберите изделие из списка');
+        return;
+    }
+
+    const productId = select.value;
+    const { constructionId, estimatePositionId } = currentProductAddContext;
+
+    // Create product via API: POST _m_new/6133?JSON&up={КонструкцияID}&t7009={Позиция сметыID}
+    const url = `https://${window.location.host}/${db}/_m_new/6133?JSON&up=${constructionId}&t7009=${estimatePositionId}`;
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `6133=${productId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.obj) {
+            closeProductSelector();
+            // Reload constructions data to refresh the table
+            if (selectedProject) {
+                loadConstructions(selectedProject['ПроектID']);
+            }
+        } else {
+            alert('Ошибка при добавлении изделия');
+        }
+    })
+    .catch(error => {
+        console.error('Error adding product:', error);
+        alert('Ошибка при добавлении изделия: ' + error.message);
+    });
 }

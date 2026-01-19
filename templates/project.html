@@ -573,10 +573,80 @@
 
     .constructions-table td.estimate-cell {
         background-color: #f8fbff;
+        position: relative;
+    }
+
+    .constructions-table td.estimate-cell .add-product-icon {
+        position: absolute;
+        right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+        cursor: pointer;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .constructions-table td.estimate-cell:hover .add-product-icon {
+        opacity: 1;
+    }
+
+    .constructions-table td.estimate-cell .add-product-icon:hover {
+        color: #007bff;
     }
 
     .constructions-table td.product-cell {
         background-color: #fffef8;
+    }
+
+    /* Product selector dropdown */
+    .product-selector {
+        position: absolute;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        min-width: 300px;
+    }
+
+    .product-selector .selector-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .product-selector .close-selector {
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        color: #6c757d;
+    }
+
+    .product-selector .search-input {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+
+    .product-selector select {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+
+    .product-selector .add-btn {
+        width: 100%;
+        margin-top: 8px;
     }
 
     .constructions-table tbody tr:hover td {
@@ -1050,6 +1120,18 @@
         </select>
     </div>
     <button type="button" class="btn btn-primary add-btn" onclick="addSelectedWorkType()">Добавить</button>
+</div>
+
+<!-- Product Selector (dynamically positioned) -->
+<div class="product-selector hidden" id="productSelector">
+    <div class="selector-header">
+        <strong>Добавить изделие</strong>
+        <button class="close-selector" onclick="closeProductSelector()">&times;</button>
+    </div>
+    <input type="text" class="search-input" id="productSelectorSearch" placeholder="Поиск изделия..." oninput="filterProductSelector()">
+    <select id="productSelectorList" size="8" style="height: auto;">
+    </select>
+    <button type="button" class="btn btn-primary add-btn" onclick="addSelectedProduct()">Добавить</button>
 </div>
 
 <script>
