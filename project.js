@@ -1093,7 +1093,7 @@ function displayConstructionsTable(data) {
     if (!tbody) return;
 
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="20" class="no-data-cell">Нет данных о конструкциях</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="23" class="no-data-cell">Нет данных о конструкциях</td></tr>';
         return;
     }
 
@@ -1169,6 +1169,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
             if (isFirstRowOfConstruction) {
                 const rs = totalRows > 1 ? `rowspan="${totalRows}"` : '';
                 html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
+                html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${construction['КонструкцияID']}"></td>`;
                 html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}<span class="id-hint">${construction['КонструкцияID']}</span></td>`;
                 html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
                 html += `<td data-col="zahvatka" ${rs}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
@@ -1178,12 +1179,14 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 isFirstRowOfConstruction = false;
             }
 
-            // Estimate position cell (with tooltip showing position ID)
+            // Estimate position checkbox and cell (with tooltip showing position ID)
             const posId = position ? (position['Позиция сметыID'] || '?') : '';
             const constructionIdForPos = construction['КонструкцияID'];
+            html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${posId}" ${position ? '' : 'disabled'}></td>`;
             html += `<td class="estimate-cell" title="Позиция сметыID: ${posId}">${position ? escapeHtml(position['Позиция сметы'] || '—') + `<span class="id-hint">${constructionIdForPos}-${posId}</span>` : '—'}</td>`;
 
-            // Empty product cells
+            // Empty product checkbox and cells
+            html += '<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" disabled></td>';
             html += '<td class="product-cell">—</td>'.repeat(12);
 
             html += '</tr>';
@@ -1196,6 +1199,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 if (isFirstRowOfConstruction) {
                     const rs = totalRows > 1 ? `rowspan="${totalRows}"` : '';
                     html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
+                    html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${construction['КонструкцияID']}"></td>`;
                     html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}<span class="id-hint">${construction['КонструкцияID']}</span></td>`;
                     html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
                     html += `<td data-col="zahvatka" ${rs}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
@@ -1205,18 +1209,21 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                     isFirstRowOfConstruction = false;
                 }
 
-                // Estimate position cell (only on first row of this position, with tooltip showing position ID)
+                // Estimate position checkbox and cell (only on first row of this position, with tooltip showing position ID)
                 if (isFirstRowOfPosition) {
                     const positionId = position['Позиция сметыID'] || '?';
                     const constructionIdForPos = construction['КонструкцияID'];
-                    html += `<td class="estimate-cell" title="Позиция сметыID: ${positionId}" ${rowCount > 1 ? `rowspan="${rowCount}"` : ''}>${escapeHtml(position['Позиция сметы'] || '—')}<span class="id-hint">${constructionIdForPos}-${positionId}</span></td>`;
+                    const rsPos = rowCount > 1 ? `rowspan="${rowCount}"` : '';
+                    html += `<td class="col-checkbox" ${rsPos}><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${positionId}"></td>`;
+                    html += `<td class="estimate-cell" title="Позиция сметыID: ${positionId}" ${rsPos}>${escapeHtml(position['Позиция сметы'] || '—')}<span class="id-hint">${constructionIdForPos}-${positionId}</span></td>`;
                     isFirstRowOfPosition = false;
                 }
 
-                // Product cells (using field names from API with fallbacks)
+                // Product checkbox and cells (using field names from API with fallbacks)
                 // First cell (Изделие) has tooltip showing which position this product belongs to
                 const prodPositionId = prod['Позиция сметыID'] || prod['Смета проектаID'] || '?';
                 const prodId = prod['ИзделиеID'] || '?';
+                html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}"></td>`;
                 html += `<td class="product-cell" title="Позиция сметыID: ${prodPositionId}">${escapeHtml(prod['Изделие'] || '—')}<span class="id-hint">${prodPositionId}-${prodId}</span></td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Маркировка'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Документация'] || prod['Документация по изделию'] || prod['Вид документации'] || '—')}</td>`;
