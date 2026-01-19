@@ -1170,7 +1170,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 const rs = totalRows > 1 ? `rowspan="${totalRows}"` : '';
                 html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
                 html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${construction['КонструкцияID']}"></td>`;
-                html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}<span class="id-hint">${construction['КонструкцияID']}</span></td>`;
+                html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
                 html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
                 html += `<td data-col="zahvatka" ${rs}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
                 html += `<td data-col="osi" ${rs}>${escapeHtml(construction['Оси'] || '—')}</td>`;
@@ -1181,9 +1181,8 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
 
             // Estimate position checkbox and cell (with tooltip showing position ID)
             const posId = position ? (position['Позиция сметыID'] || '?') : '';
-            const constructionIdForPos = construction['КонструкцияID'];
             html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${posId}" ${position ? '' : 'disabled'}></td>`;
-            html += `<td class="estimate-cell" title="Позиция сметыID: ${posId}">${position ? escapeHtml(position['Позиция сметы'] || '—') + `<span class="id-hint">${constructionIdForPos}-${posId}</span>` : '—'}</td>`;
+            html += `<td class="estimate-cell" title="Позиция сметыID: ${posId}">${position ? escapeHtml(position['Позиция сметы'] || '—') : '—'}</td>`;
 
             // Empty product checkbox and cells
             html += '<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" disabled></td>';
@@ -1200,7 +1199,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                     const rs = totalRows > 1 ? `rowspan="${totalRows}"` : '';
                     html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
                     html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${construction['КонструкцияID']}"></td>`;
-                    html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}<span class="id-hint">${construction['КонструкцияID']}</span></td>`;
+                    html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
                     html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
                     html += `<td data-col="zahvatka" ${rs}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
                     html += `<td data-col="osi" ${rs}>${escapeHtml(construction['Оси'] || '—')}</td>`;
@@ -1212,10 +1211,9 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 // Estimate position checkbox and cell (only on first row of this position, with tooltip showing position ID)
                 if (isFirstRowOfPosition) {
                     const positionId = position['Позиция сметыID'] || '?';
-                    const constructionIdForPos = construction['КонструкцияID'];
                     const rsPos = rowCount > 1 ? `rowspan="${rowCount}"` : '';
                     html += `<td class="col-checkbox" ${rsPos}><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${positionId}"></td>`;
-                    html += `<td class="estimate-cell" title="Позиция сметыID: ${positionId}" ${rsPos}>${escapeHtml(position['Позиция сметы'] || '—')}<span class="id-hint">${constructionIdForPos}-${positionId}</span></td>`;
+                    html += `<td class="estimate-cell" title="Позиция сметыID: ${positionId}" ${rsPos}>${escapeHtml(position['Позиция сметы'] || '—')}</td>`;
                     isFirstRowOfPosition = false;
                 }
 
@@ -1224,7 +1222,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 const prodPositionId = prod['Позиция сметыID'] || prod['Смета проектаID'] || '?';
                 const prodId = prod['ИзделиеID'] || '?';
                 html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}"></td>`;
-                html += `<td class="product-cell" title="Позиция сметыID: ${prodPositionId}">${escapeHtml(prod['Изделие'] || '—')}<span class="id-hint">${prodPositionId}-${prodId}</span></td>`;
+                html += `<td class="product-cell" title="Позиция сметыID: ${prodPositionId}">${escapeHtml(prod['Изделие'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Маркировка'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Документация'] || prod['Документация по изделию'] || prod['Вид документации'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Высота от пола мм'] || '—')}</td>`;
@@ -1807,4 +1805,14 @@ function applyColumnVisibility() {
     } catch (e) {
         console.error('Error applying column visibility:', e);
     }
+}
+
+/**
+ * Toggle all checkboxes in a column by data-type
+ */
+function toggleColumnCheckboxes(type, checked) {
+    const checkboxes = document.querySelectorAll(`.constructions-table input.compact-checkbox[data-type="${type}"]:not(:disabled)`);
+    checkboxes.forEach(cb => {
+        cb.checked = checked;
+    });
 }
