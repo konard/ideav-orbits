@@ -1211,7 +1211,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
             // Estimate position checkbox and cell (with tooltip showing position ID)
             const posId = position ? (position['Позиция сметыID'] || '?') : '';
             const constId = construction['КонструкцияID'];
-            html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${posId}" ${position ? '' : 'disabled'}></td>`;
+            html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${posId}" data-construction-id="${constId}" onchange="updateBulkAddIconVisibility()" ${position ? '' : 'disabled'}></td>`;
             html += `<td class="estimate-cell" title="Позиция сметыID: ${posId}">${position ? escapeHtml(position['Позиция сметы'] || '—') + `<span class="add-product-icon" onclick="showProductSelector(event, '${constId}', '${posId}')" title="Добавить изделие">+</span>` : '—'}</td>`;
 
             // Empty product checkbox and cells
@@ -1254,7 +1254,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                     const positionId = position['Позиция сметыID'] || '?';
                     const constIdForIcon = construction['КонструкцияID'];
                     const rsPos = rowCount > 1 ? `rowspan="${rowCount}"` : '';
-                    html += `<td class="col-checkbox" ${rsPos}><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${positionId}"></td>`;
+                    html += `<td class="col-checkbox" ${rsPos}><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${positionId}" data-construction-id="${constIdForIcon}" onchange="updateBulkAddIconVisibility()"></td>`;
                     html += `<td class="estimate-cell" title="Позиция сметыID: ${positionId}" ${rsPos}>${escapeHtml(position['Позиция сметы'] || '—')}<span class="add-product-icon" onclick="showProductSelector(event, '${constIdForIcon}', '${positionId}')" title="Добавить изделие">+</span></td>`;
                     isFirstRowOfPosition = false;
                 }
@@ -1857,6 +1857,66 @@ function toggleColumnCheckboxes(type, checked) {
     checkboxes.forEach(cb => {
         cb.checked = checked;
     });
+    // Update bulk add icon visibility for estimate checkboxes
+    if (type === 'estimate') {
+        updateBulkAddIconVisibility();
+    }
+}
+
+/**
+ * Update visibility of bulk add product icon based on checked estimate checkboxes
+ */
+function updateBulkAddIconVisibility() {
+    const checkedEstimates = document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="estimate"]:checked');
+    const icon = document.getElementById('bulkAddProductIcon');
+    if (icon) {
+        if (checkedEstimates.length > 0) {
+            icon.classList.add('visible');
+        } else {
+            icon.classList.remove('visible');
+        }
+    }
+}
+
+/**
+ * Show product selector for bulk adding products to selected estimate positions
+ */
+function showBulkProductSelector(event) {
+    event.stopPropagation();
+
+    // Get all checked estimate checkboxes
+    const checkedEstimates = document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="estimate"]:checked');
+    if (checkedEstimates.length === 0) {
+        alert('Выберите хотя бы одну позицию сметы');
+        return;
+    }
+
+    // Store context for bulk addition
+    currentProductAddContext = {
+        isBulk: true,
+        positions: Array.from(checkedEstimates).map(cb => ({
+            constructionId: cb.dataset.constructionId,
+            estimatePositionId: cb.dataset.id
+        }))
+    };
+
+    const selector = document.getElementById('productSelector');
+    if (!selector) return;
+
+    populateProductSelector();
+
+    // Position selector near the icon
+    const rect = event.target.getBoundingClientRect();
+    selector.style.left = `${rect.left}px`;
+    selector.style.top = `${rect.bottom + 5}px`;
+    selector.classList.remove('hidden');
+
+    // Focus search
+    const searchInput = document.getElementById('productSelectorSearch');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
 }
 
 /**
@@ -2004,6 +2064,13 @@ function addSelectedProduct() {
     }
 
     const productId = select.value;
+
+    // Handle bulk addition
+    if (currentProductAddContext.isBulk && currentProductAddContext.positions) {
+        addProductToMultiplePositions(productId, currentProductAddContext.positions);
+        return;
+    }
+
     const { constructionId, estimatePositionId } = currentProductAddContext;
 
     // Create product via API: POST _m_new/6133?JSON&up={КонструкцияID}&t7009={Позиция сметыID}
@@ -2038,4 +2105,67 @@ function addSelectedProduct() {
         console.error('Error adding product:', error);
         alert('Ошибка при добавлении изделия: ' + error.message);
     });
+}
+
+/**
+ * Add product to multiple estimate positions (bulk add)
+ */
+async function addProductToMultiplePositions(productId, positions) {
+    closeProductSelector();
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const pos of positions) {
+        const { constructionId, estimatePositionId } = pos;
+        if (!constructionId || !estimatePositionId) {
+            errorCount++;
+            continue;
+        }
+
+        const url = `https://${window.location.host}/${db}/_m_new/6133?JSON&up=${constructionId}&t7009=${estimatePositionId}`;
+
+        let body = `6133=${productId}`;
+        if (typeof xsrf !== 'undefined' && xsrf) {
+            body += `&_xsrf=${encodeURIComponent(xsrf)}`;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: body
+            });
+            const data = await response.json();
+            if (data.obj) {
+                successCount++;
+            } else {
+                errorCount++;
+            }
+        } catch (error) {
+            console.error('Error adding product:', error);
+            errorCount++;
+        }
+    }
+
+    // Uncheck all estimate checkboxes and hide icon
+    document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="estimate"]:checked').forEach(cb => {
+        cb.checked = false;
+    });
+    const headerCheckbox = document.getElementById('checkAllEstimates');
+    if (headerCheckbox) {
+        headerCheckbox.checked = false;
+    }
+    updateBulkAddIconVisibility();
+
+    // Reload constructions data
+    if (selectedProject) {
+        loadConstructionsData(selectedProject['ПроектID']);
+    }
+
+    if (errorCount > 0) {
+        alert(`Добавлено: ${successCount}, ошибок: ${errorCount}`);
+    }
 }

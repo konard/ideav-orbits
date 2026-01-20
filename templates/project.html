@@ -842,6 +842,25 @@
         padding: 6px 10px;
         margin-left: 8px;
     }
+
+    /* Bulk add product icon in header */
+    .bulk-add-product-icon {
+        display: none;
+        color: #007bff;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        margin-left: 6px;
+        vertical-align: middle;
+    }
+
+    .bulk-add-product-icon:hover {
+        color: #0056b3;
+    }
+
+    .bulk-add-product-icon.visible {
+        display: inline;
+    }
 </style>
 
 <div class="project-list-container">
@@ -955,7 +974,7 @@
                             <th class="col-construction" data-col="vysotm">Выс.отм.</th>
                             <th class="col-construction" data-col="etazh">Этаж</th>
                             <th class="col-checkbox" title="Выбрать все позиции сметы"><input type="checkbox" class="compact-checkbox" id="checkAllEstimates" onchange="toggleColumnCheckboxes('estimate', this.checked)"></th>
-                            <th class="col-estimate">Позиция сметы</th>
+                            <th class="col-estimate">Позиция сметы <span id="bulkAddProductIcon" class="bulk-add-product-icon" onclick="showBulkProductSelector(event)" title="Добавить изделие к выбранным позициям">+</span></th>
                             <th class="col-checkbox" title="Выбрать все изделия"><input type="checkbox" class="compact-checkbox" id="checkAllProducts" onchange="toggleColumnCheckboxes('product', this.checked)"></th>
                             <th class="col-product">Изделие</th>
                             <th class="col-product">Маркировка</th>
