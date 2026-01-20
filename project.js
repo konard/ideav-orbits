@@ -2942,7 +2942,7 @@ function saveDocumentation() {
 
         // Reload the constructions data to show the new documentation
         if (selectedProject) {
-            loadConstructions(selectedProject['ПроектID']);
+            loadConstructionsData(selectedProject['ПроектID']);
         }
     })
     .catch(error => {
