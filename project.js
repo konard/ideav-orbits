@@ -1230,14 +1230,15 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
             // Construction cells (only on first row)
             if (isFirstRowOfConstruction) {
                 const rs = totalRows > 1 ? `rowspan="${totalRows}"` : '';
+                const cid = construction['КонструкцияID'];
                 html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
-                html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${construction['КонструкцияID']}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
-                html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
+                html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${cid}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
+                html += `<td class="construction-cell editable" ${rs} data-construction-id="${cid}" data-field="t6132" data-save-method="save" onclick="editConstructionCell(this)">${escapeHtml(construction['Конструкция'] || '—')}</td>`;
                 html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
-                html += `<td data-col="zahvatka" ${rs}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
-                html += `<td data-col="osi" ${rs}>${escapeHtml(construction['Оси'] || '—')}</td>`;
-                html += `<td data-col="vysotm" ${rs}>${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
-                html += `<td data-col="etazh" ${rs}>${escapeHtml(construction['Этаж'] || '—')}</td>`;
+                html += `<td class="construction-cell editable" data-col="zahvatka" ${rs} data-construction-id="${cid}" data-field="t6989" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Захватка'] || '—')}</td>`;
+                html += `<td class="construction-cell editable" data-col="osi" ${rs} data-construction-id="${cid}" data-field="t6991" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Оси'] || '—')}</td>`;
+                html += `<td class="construction-cell editable" data-col="vysotm" ${rs} data-construction-id="${cid}" data-field="t6993" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
+                html += `<td class="construction-cell editable" data-col="etazh" ${rs} data-construction-id="${cid}" data-field="t6995" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Этаж'] || '—')}</td>`;
                 isFirstRowOfConstruction = false;
             }
 
@@ -1271,14 +1272,15 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 // Construction cells (only on first row of entire construction)
                 if (isFirstRowOfConstruction) {
                     const rs = totalRows > 1 ? `rowspan="${totalRows}"` : '';
+                    const cid = construction['КонструкцияID'];
                     html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
-                    html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${construction['КонструкцияID']}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
-                    html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
+                    html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${cid}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
+                    html += `<td class="construction-cell editable" ${rs} data-construction-id="${cid}" data-field="t6132" data-save-method="save" onclick="editConstructionCell(this)">${escapeHtml(construction['Конструкция'] || '—')}</td>`;
                     html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
-                    html += `<td data-col="zahvatka" ${rs}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
-                    html += `<td data-col="osi" ${rs}>${escapeHtml(construction['Оси'] || '—')}</td>`;
-                    html += `<td data-col="vysotm" ${rs}>${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
-                    html += `<td data-col="etazh" ${rs}>${escapeHtml(construction['Этаж'] || '—')}</td>`;
+                    html += `<td class="construction-cell editable" data-col="zahvatka" ${rs} data-construction-id="${cid}" data-field="t6989" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Захватка'] || '—')}</td>`;
+                    html += `<td class="construction-cell editable" data-col="osi" ${rs} data-construction-id="${cid}" data-field="t6991" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Оси'] || '—')}</td>`;
+                    html += `<td class="construction-cell editable" data-col="vysotm" ${rs} data-construction-id="${cid}" data-field="t6993" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
+                    html += `<td class="construction-cell editable" data-col="etazh" ${rs} data-construction-id="${cid}" data-field="t6995" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Этаж'] || '—')}</td>`;
                     isFirstRowOfConstruction = false;
                 }
 
@@ -2628,6 +2630,133 @@ function saveProductField(productId, field, value) {
     })
     .catch(error => {
         console.error(`Error saving product field ${field}:`, error);
+        alert('Ошибка при сохранении');
+    });
+}
+
+/**
+ * Edit construction cell inline
+ * @param {HTMLElement} cell - The cell element to edit
+ */
+function editConstructionCell(cell) {
+    // Don't edit if already in editing mode
+    if (cell.classList.contains('editing')) {
+        return;
+    }
+
+    const constructionId = cell.dataset.constructionId;
+    const field = cell.dataset.field;
+    const saveMethod = cell.dataset.saveMethod; // 'save' or 'set'
+    const currentValue = cell.textContent.trim();
+    const displayValue = currentValue === '—' ? '' : currentValue;
+
+    // Add editing class
+    cell.classList.add('editing');
+
+    // Create input element
+    const inputElement = document.createElement('input');
+    inputElement.type = 'text';
+    inputElement.value = displayValue;
+
+    // Store original value for cancel
+    inputElement.dataset.originalValue = currentValue;
+    inputElement.dataset.constructionId = constructionId;
+    inputElement.dataset.field = field;
+    inputElement.dataset.saveMethod = saveMethod;
+
+    // Handle blur - save and close
+    inputElement.addEventListener('blur', function() {
+        saveConstructionCellEdit(cell, this);
+    });
+
+    // Handle keydown - Enter to save, Escape to cancel
+    inputElement.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.blur();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelConstructionCellEdit(cell, this);
+        }
+    });
+
+    // Prevent click from bubbling
+    inputElement.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+
+    // Replace cell content with input
+    cell.textContent = '';
+    cell.appendChild(inputElement);
+
+    // Focus and select
+    inputElement.focus();
+    inputElement.select();
+}
+
+/**
+ * Save construction cell edit
+ * @param {HTMLElement} cell - The cell element
+ * @param {HTMLElement} input - The input element
+ */
+function saveConstructionCellEdit(cell, input) {
+    const constructionId = input.dataset.constructionId;
+    const field = input.dataset.field;
+    const saveMethod = input.dataset.saveMethod;
+    const originalValue = input.dataset.originalValue;
+    const newValue = input.value.trim();
+    const displayValue = newValue || '—';
+
+    // Remove editing class and restore cell
+    cell.classList.remove('editing');
+    cell.textContent = displayValue;
+
+    // Only save if value changed
+    if (newValue !== originalValue && !(newValue === '' && originalValue === '—')) {
+        // Save to server
+        saveConstructionField(constructionId, field, newValue, saveMethod);
+    }
+}
+
+/**
+ * Cancel construction cell edit
+ * @param {HTMLElement} cell - The cell element
+ * @param {HTMLElement} input - The input element
+ */
+function cancelConstructionCellEdit(cell, input) {
+    const originalValue = input.dataset.originalValue;
+
+    // Remove editing class and restore original value
+    cell.classList.remove('editing');
+    cell.textContent = originalValue;
+}
+
+/**
+ * Save construction field to server
+ * @param {string} constructionId - The construction ID
+ * @param {string} field - The field parameter (e.g., t6132)
+ * @param {string} value - The new value
+ * @param {string} saveMethod - 'save' for _m_save, 'set' for _m_set
+ */
+function saveConstructionField(constructionId, field, value, saveMethod) {
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+
+    // Use _m_save for t6132 (Конструкция), _m_set for others
+    const endpoint = saveMethod === 'save' ? '_m_save' : '_m_set';
+    const url = `https://${window.location.host}/${db}/${endpoint}/${constructionId}?JSON&${field}=${encodeURIComponent(value)}`;
+
+    fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(`Saved construction field ${field} for ${constructionId}:`, data);
+    })
+    .catch(error => {
+        console.error(`Error saving construction field ${field}:`, error);
         alert('Ошибка при сохранении');
     });
 }

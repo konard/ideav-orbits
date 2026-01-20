@@ -646,6 +646,34 @@
         -moz-appearance: textfield;
     }
 
+    /* Editable construction cells */
+    .constructions-table td.construction-cell.editable {
+        cursor: pointer;
+    }
+
+    .constructions-table td.construction-cell.editable:hover {
+        background-color: #e7f3ff;
+    }
+
+    .constructions-table td.construction-cell.editing {
+        padding: 2px;
+        background-color: #fff;
+    }
+
+    .constructions-table td.construction-cell.editing input {
+        width: 100%;
+        padding: 4px 6px;
+        border: 1px solid #007bff;
+        border-radius: 3px;
+        font-size: 12px;
+        box-sizing: border-box;
+    }
+
+    .constructions-table td.construction-cell.editing input:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+
     /* Product selector dropdown */
     .product-selector {
         position: absolute;
