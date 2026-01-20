@@ -1234,7 +1234,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
                 html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${cid}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
                 html += `<td class="construction-cell editable" ${rs} data-construction-id="${cid}" data-field="t6132" data-save-method="save" onclick="editConstructionCell(this)">${escapeHtml(construction['Конструкция'] || '—')}</td>`;
-                html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
+                html += `<td data-col="doc" ${rs}>${formatDocumentationLinks(construction['Документация по конструкции'], cid, 'construction')}</td>`;
                 html += `<td class="construction-cell editable" data-col="zahvatka" ${rs} data-construction-id="${cid}" data-field="t6989" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Захватка'] || '—')}</td>`;
                 html += `<td class="construction-cell editable" data-col="osi" ${rs} data-construction-id="${cid}" data-field="t6991" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Оси'] || '—')}</td>`;
                 html += `<td class="construction-cell editable" data-col="vysotm" ${rs} data-construction-id="${cid}" data-field="t6993" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
@@ -1276,7 +1276,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                     html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
                     html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${cid}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
                     html += `<td class="construction-cell editable" ${rs} data-construction-id="${cid}" data-field="t6132" data-save-method="save" onclick="editConstructionCell(this)">${escapeHtml(construction['Конструкция'] || '—')}</td>`;
-                    html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
+                    html += `<td data-col="doc" ${rs}>${formatDocumentationLinks(construction['Документация по конструкции'], cid, 'construction')}</td>`;
                     html += `<td class="construction-cell editable" data-col="zahvatka" ${rs} data-construction-id="${cid}" data-field="t6989" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Захватка'] || '—')}</td>`;
                     html += `<td class="construction-cell editable" data-col="osi" ${rs} data-construction-id="${cid}" data-field="t6991" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Оси'] || '—')}</td>`;
                     html += `<td class="construction-cell editable" data-col="vysotm" ${rs} data-construction-id="${cid}" data-field="t6993" data-save-method="set" onclick="editConstructionCell(this)">${escapeHtml(construction['Высотные отметки'] || '—')}</td>`;
@@ -1302,7 +1302,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
                 html += `<td class="product-cell" title="Позиция сметыID: ${prodPositionId}">${escapeHtml(prod['Изделие'] || '—')}</td>`;
                 html += `<td class="product-cell editable" data-product-id="${prodId}" data-field="t6997" data-field-type="text" onclick="editProductCell(this)">${escapeHtml(prod['Маркировка'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Документация'] || prod['Документация по изделию'] || prod['Вид документации'] || '—')}</td>`;
+                html += `<td class="product-cell">${formatDocumentationLinks(prod['Документация'] || prod['Документация по изделию'] || prod['Вид документации'], prodId, 'product')}</td>`;
                 html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6999" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Высота от пола мм'] || '—')}</td>`;
                 html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6136" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Длина, м'] || prod['Длина мм'] || '—')}</td>`;
                 html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6144" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Высота, м'] || prod['Высота мм'] || '—')}</td>`;
@@ -2461,7 +2461,8 @@ function resetProjectUIState() {
         'clientModalBackdrop',
         'objectModalBackdrop',
         'bulkDeleteModalBackdrop',
-        'bulkDeleteProgressBackdrop'
+        'bulkDeleteProgressBackdrop',
+        'addDocumentationModalBackdrop'
     ];
     modals.forEach(id => {
         const modal = document.getElementById(id);
@@ -2802,5 +2803,150 @@ function saveConstructionField(constructionId, field, value, saveMethod) {
     .catch(error => {
         console.error(`Error saving construction field ${field}:`, error);
         alert('Ошибка при сохранении');
+    });
+}
+
+// Current documentation add context
+let currentDocAddContext = null; // {parentId, parentType}
+
+/**
+ * Format link text for display in badge
+ * Shows last 5 characters before last dot + extension, or last 13 characters if no extension
+ * @param {string} url - The URL to format
+ * @returns {string} - Formatted short text
+ */
+function formatLinkText(url) {
+    if (!url) return '';
+
+    // Trim whitespace
+    url = url.trim();
+
+    // Find last dot position
+    const lastDotIndex = url.lastIndexOf('.');
+
+    if (lastDotIndex > 0 && lastDotIndex < url.length - 1) {
+        // Has extension
+        const extension = url.substring(lastDotIndex); // includes the dot
+        const beforeDot = url.substring(0, lastDotIndex);
+
+        // Get last 5 characters before the dot
+        const shortPart = beforeDot.length > 5 ? beforeDot.substring(beforeDot.length - 5) : beforeDot;
+        const result = shortPart + extension;
+
+        // If result is longer than 13 characters, just use last 13
+        if (result.length > 13) {
+            return url.substring(url.length - 13);
+        }
+        return result;
+    } else {
+        // No extension or unusual format - use last 13 characters
+        return url.length > 13 ? url.substring(url.length - 13) : url;
+    }
+}
+
+/**
+ * Format documentation links as clickable badges with add icon
+ * @param {string} docString - Comma-separated list of documentation links
+ * @param {string} parentId - ID of parent (Construction or Product)
+ * @param {string} parentType - Type: 'construction' or 'product'
+ * @returns {string} - HTML string with badges and add icon
+ */
+function formatDocumentationLinks(docString, parentId, parentType) {
+    let html = '<div class="doc-links-container">';
+
+    // Parse and display existing links
+    if (docString && docString.trim() && docString.trim() !== '—') {
+        const links = docString.split(',').map(l => l.trim()).filter(l => l.length > 0);
+
+        links.forEach(link => {
+            const displayText = escapeHtml(formatLinkText(link));
+            const fullUrl = escapeHtml(link);
+            html += `<a href="${fullUrl}" target="_blank" class="doc-link-badge" title="${fullUrl}">${displayText}</a>`;
+        });
+    }
+
+    // Add icon to add new documentation
+    html += `<span class="add-doc-icon" onclick="showAddDocumentationModal('${parentId}', '${parentType}')" title="Добавить документацию">+</span>`;
+
+    html += '</div>';
+    return html;
+}
+
+/**
+ * Show modal to add documentation link
+ * @param {string} parentId - ID of parent object
+ * @param {string} parentType - 'construction' or 'product'
+ */
+function showAddDocumentationModal(parentId, parentType) {
+    currentDocAddContext = { parentId, parentType };
+
+    // Clear input fields
+    document.getElementById('docLinkInput').value = '';
+    document.getElementById('docDescriptionInput').value = '';
+
+    // Show modal
+    document.getElementById('addDocumentationModalBackdrop').classList.add('show');
+
+    // Focus on link input
+    setTimeout(() => {
+        document.getElementById('docLinkInput').focus();
+    }, 100);
+}
+
+/**
+ * Close add documentation modal
+ */
+function closeAddDocumentationModal() {
+    document.getElementById('addDocumentationModalBackdrop').classList.remove('show');
+    currentDocAddContext = null;
+}
+
+/**
+ * Save new documentation link to database
+ */
+function saveDocumentation() {
+    if (!currentDocAddContext) {
+        console.error('No documentation context set');
+        return;
+    }
+
+    const link = document.getElementById('docLinkInput').value.trim();
+    const description = document.getElementById('docDescriptionInput').value.trim();
+
+    if (!link) {
+        alert('Введите ссылку на документацию');
+        return;
+    }
+
+    const { parentId, parentType } = currentDocAddContext;
+
+    // Build URL: POST _m_new/6147?JSON&up={parentId}
+    let url = `https://${window.location.host}/${db}/_m_new/6147?JSON&up=${parentId}`;
+    url += `&t6147=${encodeURIComponent(link)}`;
+    if (description) {
+        url += `&t6149=${encodeURIComponent(description)}`;
+    }
+
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+
+    fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Documentation saved:', data);
+        closeAddDocumentationModal();
+
+        // Reload the constructions data to show the new documentation
+        if (selectedProject) {
+            loadConstructions(selectedProject['ПроектID']);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving documentation:', error);
+        alert('Ошибка при сохранении документации');
     });
 }
