@@ -1198,7 +1198,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
             if (isFirstRowOfConstruction) {
                 const rs = totalRows > 1 ? `rowspan="${totalRows}"` : '';
                 html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
-                html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${construction['КонструкцияID']}"></td>`;
+                html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${construction['КонструкцияID']}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
                 html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
                 html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
                 html += `<td data-col="zahvatka" ${rs}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
@@ -1211,7 +1211,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
             // Estimate position checkbox and cell (with tooltip showing position ID)
             const posId = position ? (position['Позиция сметыID'] || '?') : '';
             const constId = construction['КонструкцияID'];
-            html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${posId}" data-construction-id="${constId}" onchange="updateBulkAddIconVisibility()" ${position ? '' : 'disabled'}></td>`;
+            html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${posId}" data-construction-id="${constId}" onchange="updateBulkAddIconVisibility(); updateBulkDeleteButtonVisibility()" ${position ? '' : 'disabled'}></td>`;
             html += `<td class="estimate-cell" title="Позиция сметыID: ${posId}">${position ? escapeHtml(position['Позиция сметы'] || '—') + `<span class="add-product-icon" onclick="showProductSelector(event, '${constId}', '${posId}')" title="Добавить изделие">+</span>` : '—'}</td>`;
 
             // Empty product checkbox and cells
@@ -1239,7 +1239,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 if (isFirstRowOfConstruction) {
                     const rs = totalRows > 1 ? `rowspan="${totalRows}"` : '';
                     html += `<td class="row-number" ${rs}>${rowNumber}</td>`;
-                    html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${construction['КонструкцияID']}"></td>`;
+                    html += `<td class="col-checkbox" ${rs}><input type="checkbox" class="compact-checkbox" data-type="construction" data-id="${construction['КонструкцияID']}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
                     html += `<td ${rs}>${escapeHtml(construction['Конструкция'] || '—')}</td>`;
                     html += `<td data-col="doc" ${rs}>${escapeHtml(construction['Документация по конструкции'] || '—')}</td>`;
                     html += `<td data-col="zahvatka" ${rs}>${escapeHtml(construction['Захватка'] || '—')}</td>`;
@@ -1254,7 +1254,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                     const positionId = position['Позиция сметыID'] || '?';
                     const constIdForIcon = construction['КонструкцияID'];
                     const rsPos = rowCount > 1 ? `rowspan="${rowCount}"` : '';
-                    html += `<td class="col-checkbox" ${rsPos}><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${positionId}" data-construction-id="${constIdForIcon}" onchange="updateBulkAddIconVisibility()"></td>`;
+                    html += `<td class="col-checkbox" ${rsPos}><input type="checkbox" class="compact-checkbox" data-type="estimate" data-id="${positionId}" data-construction-id="${constIdForIcon}" onchange="updateBulkAddIconVisibility(); updateBulkDeleteButtonVisibility()"></td>`;
                     html += `<td class="estimate-cell" title="Позиция сметыID: ${positionId}" ${rsPos}>${escapeHtml(position['Позиция сметы'] || '—')}<span class="add-product-icon" onclick="showProductSelector(event, '${constIdForIcon}', '${positionId}')" title="Добавить изделие">+</span></td>`;
                     isFirstRowOfPosition = false;
                 }
@@ -1263,7 +1263,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 // First cell (Изделие) has tooltip showing which position this product belongs to
                 const prodPositionId = prod['Позиция сметыID'] || prod['Смета проектаID'] || '?';
                 const prodId = prod['ИзделиеID'] || '?';
-                html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}"></td>`;
+                html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
                 html += `<td class="product-cell" title="Позиция сметыID: ${prodPositionId}">${escapeHtml(prod['Изделие'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Маркировка'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Документация'] || prod['Документация по изделию'] || prod['Вид документации'] || '—')}</td>`;
@@ -1889,6 +1889,8 @@ function toggleColumnCheckboxes(type, checked) {
     if (type === 'estimate') {
         updateBulkAddIconVisibility();
     }
+    // Update bulk delete button visibility
+    updateBulkDeleteButtonVisibility();
 }
 
 /**
@@ -2196,5 +2198,175 @@ async function addProductToMultiplePositions(productId, productName, positions) 
 
     if (errorCount > 0) {
         alert(`Добавлено: ${successCount}, ошибок: ${errorCount}`);
+    }
+}
+
+/**
+ * Update bulk delete button visibility based on checked checkboxes
+ */
+function updateBulkDeleteButtonVisibility() {
+    const checkedItems = getSelectedItemsForDeletion();
+    const btn = document.getElementById('btnBulkDelete');
+    const countSpan = document.getElementById('bulkDeleteCount');
+
+    if (btn && countSpan) {
+        if (checkedItems.length > 0) {
+            btn.classList.add('visible');
+            countSpan.textContent = `Удалить (${checkedItems.length})`;
+        } else {
+            btn.classList.remove('visible');
+            countSpan.textContent = 'Удалить';
+        }
+    }
+}
+
+/**
+ * Get all selected items for deletion from constructions table
+ * Returns array of {type, id} objects
+ */
+function getSelectedItemsForDeletion() {
+    const items = [];
+
+    // Get checked construction checkboxes
+    document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="construction"]:checked').forEach(cb => {
+        const id = cb.dataset.id;
+        if (id) {
+            items.push({ type: 'construction', id: id });
+        }
+    });
+
+    // Get checked estimate checkboxes
+    document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="estimate"]:checked').forEach(cb => {
+        const id = cb.dataset.id;
+        if (id) {
+            items.push({ type: 'estimate', id: id });
+        }
+    });
+
+    // Get checked product checkboxes
+    document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="product"]:checked').forEach(cb => {
+        const id = cb.dataset.id;
+        if (id) {
+            items.push({ type: 'product', id: id });
+        }
+    });
+
+    return items;
+}
+
+/**
+ * Show bulk delete confirmation modal
+ */
+function showBulkDeleteConfirmation() {
+    const items = getSelectedItemsForDeletion();
+    if (items.length === 0) {
+        alert('Выберите объекты для удаления');
+        return;
+    }
+
+    const message = document.getElementById('bulkDeleteMessage');
+    if (message) {
+        message.textContent = `Удалить ${items.length} объектов?`;
+    }
+
+    document.getElementById('bulkDeleteModalBackdrop').classList.add('show');
+}
+
+/**
+ * Close bulk delete modal
+ */
+function closeBulkDeleteModal() {
+    document.getElementById('bulkDeleteModalBackdrop').classList.remove('show');
+}
+
+/**
+ * Close bulk delete progress modal
+ */
+function closeBulkDeleteProgressModal() {
+    document.getElementById('bulkDeleteProgressBackdrop').classList.remove('show');
+}
+
+/**
+ * Confirm and execute bulk deletion
+ */
+async function confirmBulkDelete() {
+    closeBulkDeleteModal();
+
+    const items = getSelectedItemsForDeletion();
+    if (items.length === 0) {
+        return;
+    }
+
+    // Show progress modal
+    document.getElementById('bulkDeleteProgressBackdrop').classList.add('show');
+    const counter = document.getElementById('deleteProgressCounter');
+
+    let deletedCount = 0;
+    let errorOccurred = false;
+
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+
+        // Update progress counter
+        if (counter) {
+            counter.textContent = `${i + 1} из ${items.length}`;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('_xsrf', xsrf);
+
+            const response = await fetch(`https://${window.location.host}/${db}/_m_del/${item.id}?JSON`, {
+                method: 'POST',
+                credentials: 'include',
+                body: formData
+            });
+
+            // Check if response is valid JSON
+            const text = await response.text();
+            try {
+                const data = JSON.parse(text);
+                deletedCount++;
+                console.log(`Deleted ${item.type} ${item.id}:`, data);
+            } catch (parseError) {
+                console.error(`Invalid JSON response for ${item.type} ${item.id}:`, text);
+                errorOccurred = true;
+                break; // Stop deletion if invalid JSON received
+            }
+        } catch (error) {
+            console.error(`Error deleting ${item.type} ${item.id}:`, error);
+            errorOccurred = true;
+            break; // Stop deletion on error
+        }
+    }
+
+    // Close progress modal
+    closeBulkDeleteProgressModal();
+
+    // Uncheck all checkboxes
+    document.querySelectorAll('.constructions-table input.compact-checkbox:checked').forEach(cb => {
+        cb.checked = false;
+    });
+
+    // Reset header checkboxes
+    ['checkAllConstructions', 'checkAllEstimates', 'checkAllProducts'].forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = false;
+    });
+
+    // Update button visibility
+    updateBulkDeleteButtonVisibility();
+    updateBulkAddIconVisibility();
+
+    // Reload data
+    if (selectedProject) {
+        loadConstructionsData(selectedProject['ПроектID']);
+    }
+
+    // Show result message
+    if (errorOccurred) {
+        alert(`Удалено ${deletedCount} из ${items.length} объектов. Удаление прервано из-за ошибки.`);
+    } else if (deletedCount > 0) {
+        console.log(`Успешно удалено ${deletedCount} объектов`);
     }
 }
