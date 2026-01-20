@@ -265,6 +265,9 @@ function filterProjects() {
  * Select a project and show detail view
  */
 function selectProject(projectId) {
+    // Reset UI state from previous project
+    resetProjectUIState();
+
     // Remove active class from all items
     document.querySelectorAll('.project-item').forEach(item => {
         item.classList.remove('active');
@@ -358,6 +361,9 @@ function updateProjectHeader() {
  * Close project detail view
  */
 function closeProjectDetail() {
+    // Reset UI state
+    resetProjectUIState();
+
     // Hide detail view
     document.getElementById('projectDetailView').classList.remove('active');
 
@@ -2369,4 +2375,72 @@ async function confirmBulkDelete() {
     } else if (deletedCount > 0) {
         console.log(`Успешно удалено ${deletedCount} объектов`);
     }
+}
+
+/**
+ * Reset all UI control states when switching projects
+ * Clears checkboxes, hides buttons, closes modals/selectors
+ */
+function resetProjectUIState() {
+    // Reset bulk delete button
+    const btnBulkDelete = document.getElementById('btnBulkDelete');
+    if (btnBulkDelete) {
+        btnBulkDelete.classList.remove('visible');
+    }
+    const bulkDeleteCount = document.getElementById('bulkDeleteCount');
+    if (bulkDeleteCount) {
+        bulkDeleteCount.textContent = 'Удалить';
+    }
+
+    // Reset bulk add product icon
+    const bulkAddProductIcon = document.getElementById('bulkAddProductIcon');
+    if (bulkAddProductIcon) {
+        bulkAddProductIcon.classList.remove('visible');
+    }
+
+    // Uncheck all checkboxes in constructions table
+    document.querySelectorAll('.constructions-table input.compact-checkbox:checked').forEach(cb => {
+        cb.checked = false;
+    });
+
+    // Reset header checkboxes
+    ['checkAllConstructions', 'checkAllEstimates', 'checkAllProducts'].forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = false;
+    });
+
+    // Close work type selector if open
+    const workTypeSelector = document.getElementById('workTypeSelector');
+    if (workTypeSelector && !workTypeSelector.classList.contains('hidden')) {
+        workTypeSelector.classList.add('hidden');
+    }
+    currentWorkTypeRow = null;
+
+    // Close product selector if open
+    const productSelector = document.getElementById('productSelector');
+    if (productSelector && !productSelector.classList.contains('hidden')) {
+        productSelector.classList.add('hidden');
+    }
+    currentProductAddContext = null;
+
+    // Close any open modals
+    const modals = [
+        'projectModalBackdrop',
+        'deleteEstimateModalBackdrop',
+        'deleteConstructionModalBackdrop',
+        'clientModalBackdrop',
+        'objectModalBackdrop',
+        'bulkDeleteModalBackdrop',
+        'bulkDeleteProgressBackdrop'
+    ];
+    modals.forEach(id => {
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.classList.remove('show');
+        }
+    });
+
+    // Reset pending delete IDs
+    pendingDeleteEstimateRowId = null;
+    pendingDeleteConstructionRowId = null;
 }
