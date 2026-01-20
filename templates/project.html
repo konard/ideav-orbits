@@ -1205,7 +1205,7 @@
     <div class="form-group">
         <label>Вид работ</label>
         <input type="text" class="search-input" id="selectorWorkTypeSearch" placeholder="Поиск..." oninput="filterSelectorWorkTypes()">
-        <select id="selectorWorkType" size="6" style="height: auto;">
+        <select id="selectorWorkType" size="6" style="height: auto;" ondblclick="addSelectedWorkType()">
         </select>
     </div>
     <button type="button" class="btn btn-primary add-btn" onclick="addSelectedWorkType()">Добавить</button>
