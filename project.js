@@ -1296,19 +1296,20 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 // First cell (Изделие) has tooltip showing which position this product belongs to
                 const prodPositionId = prod['Позиция сметыID'] || prod['Смета проектаID'] || '?';
                 const prodId = prod['ИзделиеID'] || '?';
+                const unitId = prod['Ед. изм ID'] || prod['ЕдИзмID'] || '';
                 html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
                 html += `<td class="product-cell" title="Позиция сметыID: ${prodPositionId}">${escapeHtml(prod['Изделие'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Маркировка'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-product-id="${prodId}" data-field="t6997" data-field-type="text" onclick="editProductCell(this)">${escapeHtml(prod['Маркировка'] || '—')}</td>`;
                 html += `<td class="product-cell">${escapeHtml(prod['Документация'] || prod['Документация по изделию'] || prod['Вид документации'] || '—')}</td>`;
-                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Высота от пола мм'] || '—')}</td>`;
-                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Длина, м'] || prod['Длина мм'] || '—')}</td>`;
-                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Высота, м'] || prod['Высота мм'] || '—')}</td>`;
-                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Периметр'] || prod['Периметр м'] || '—')}</td>`;
-                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Площадь, м2'] || prod['Площадь м2'] || '—')}</td>`;
-                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Вес на м2, кг'] || prod['Вес м2/кг'] || '—')}</td>`;
-                html += `<td class="product-cell" data-col="product-detail">${escapeHtml(prod['Вес, кг'] || prod['Вес одной'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Ед. изм'] || '—')}</td>`;
-                html += `<td class="product-cell">${escapeHtml(prod['Количество'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6999" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Высота от пола мм'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6136" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Длина, м'] || prod['Длина мм'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6144" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Высота, м'] || prod['Высота мм'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6140" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Периметр'] || prod['Периметр м'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6142" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Площадь, м2'] || prod['Площадь м2'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6146" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Вес на м2, кг'] || prod['Вес м2/кг'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6138" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Вес, кг'] || prod['Вес одной'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-product-id="${prodId}" data-field="t7238" data-field-type="select" data-current-id="${unitId}" onclick="editProductCell(this)">${escapeHtml(prod['Ед. изм'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-product-id="${prodId}" data-field="t7237" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Количество'] || '—')}</td>`;
 
                 html += '</tr>';
             });
@@ -2470,4 +2471,163 @@ function resetProjectUIState() {
     // Reset pending delete IDs
     pendingDeleteEstimateRowId = null;
     pendingDeleteConstructionRowId = null;
+}
+
+/**
+ * Edit product cell inline
+ * @param {HTMLElement} cell - The cell element to edit
+ */
+function editProductCell(cell) {
+    // Don't edit if already in editing mode
+    if (cell.classList.contains('editing')) {
+        return;
+    }
+
+    const productId = cell.dataset.productId;
+    const field = cell.dataset.field;
+    const fieldType = cell.dataset.fieldType;
+    const currentValue = cell.textContent.trim();
+    const displayValue = currentValue === '—' ? '' : currentValue;
+
+    // Add editing class
+    cell.classList.add('editing');
+
+    // Create input element based on field type
+    let inputElement;
+
+    if (fieldType === 'select' && field === 't7238') {
+        // Unit select dropdown
+        inputElement = document.createElement('select');
+        inputElement.innerHTML = '<option value="">—</option>';
+
+        // Populate with units from dictionaries
+        if (dictionaries.units && dictionaries.units.length > 0) {
+            const currentId = cell.dataset.currentId || '';
+            dictionaries.units.forEach(unit => {
+                const option = document.createElement('option');
+                option.value = unit['Ед.изм.ID'] || '';
+                option.textContent = unit['Ед.изм.'] || '';
+                if (option.value == currentId) {
+                    option.selected = true;
+                }
+                inputElement.appendChild(option);
+            });
+        }
+    } else if (fieldType === 'number') {
+        inputElement = document.createElement('input');
+        inputElement.type = 'number';
+        inputElement.step = 'any';
+        inputElement.value = displayValue;
+    } else {
+        inputElement = document.createElement('input');
+        inputElement.type = 'text';
+        inputElement.value = displayValue;
+    }
+
+    // Store original value for cancel
+    inputElement.dataset.originalValue = currentValue;
+    inputElement.dataset.productId = productId;
+    inputElement.dataset.field = field;
+
+    // Handle blur - save and close
+    inputElement.addEventListener('blur', function() {
+        saveProductCellEdit(cell, this);
+    });
+
+    // Handle keydown - Enter to save, Escape to cancel
+    inputElement.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.blur();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelProductCellEdit(cell, this);
+        }
+    });
+
+    // Prevent click from bubbling
+    inputElement.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+
+    // Replace cell content with input
+    cell.textContent = '';
+    cell.appendChild(inputElement);
+
+    // Focus and select
+    inputElement.focus();
+    if (inputElement.select) {
+        inputElement.select();
+    }
+}
+
+/**
+ * Save product cell edit
+ * @param {HTMLElement} cell - The cell element
+ * @param {HTMLElement} input - The input element
+ */
+function saveProductCellEdit(cell, input) {
+    const productId = input.dataset.productId;
+    const field = input.dataset.field;
+    const originalValue = input.dataset.originalValue;
+    let newValue = input.value.trim();
+    let displayValue = newValue || '—';
+
+    // For select, get the selected option text for display
+    if (input.tagName === 'SELECT') {
+        const selectedOption = input.options[input.selectedIndex];
+        displayValue = selectedOption && selectedOption.value ? selectedOption.textContent : '—';
+        // Update current-id for future edits
+        cell.dataset.currentId = newValue;
+    }
+
+    // Remove editing class and restore cell
+    cell.classList.remove('editing');
+    cell.textContent = displayValue;
+
+    // Only save if value changed
+    if (newValue !== originalValue && !(newValue === '' && originalValue === '—')) {
+        // Save to server
+        saveProductField(productId, field, newValue);
+    }
+}
+
+/**
+ * Cancel product cell edit
+ * @param {HTMLElement} cell - The cell element
+ * @param {HTMLElement} input - The input element
+ */
+function cancelProductCellEdit(cell, input) {
+    const originalValue = input.dataset.originalValue;
+
+    // Remove editing class and restore original value
+    cell.classList.remove('editing');
+    cell.textContent = originalValue;
+}
+
+/**
+ * Save product field to server
+ * @param {string} productId - The product ID
+ * @param {string} field - The field parameter (e.g., t6138)
+ * @param {string} value - The new value
+ */
+function saveProductField(productId, field, value) {
+    const formData = new FormData();
+    formData.append('_xsrf', xsrf);
+
+    const url = `https://${window.location.host}/${db}/_m_set/${productId}?JSON&${field}=${encodeURIComponent(value)}`;
+
+    fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(`Saved product field ${field} for ${productId}:`, data);
+    })
+    .catch(error => {
+        console.error(`Error saving product field ${field}:`, error);
+        alert('Ошибка при сохранении');
+    });
 }

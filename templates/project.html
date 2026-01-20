@@ -603,6 +603,49 @@
         background-color: #fffef8;
     }
 
+    .constructions-table td.product-cell.editable {
+        cursor: pointer;
+    }
+
+    .constructions-table td.product-cell.editable:hover {
+        background-color: #fff3cd;
+    }
+
+    .constructions-table td.product-cell.editing {
+        padding: 2px;
+        background-color: #fff;
+    }
+
+    .constructions-table td.product-cell.editing input,
+    .constructions-table td.product-cell.editing select {
+        width: 100%;
+        padding: 4px 6px;
+        border: 1px solid #007bff;
+        border-radius: 3px;
+        font-size: 12px;
+        box-sizing: border-box;
+    }
+
+    .constructions-table td.product-cell.editing input:focus,
+    .constructions-table td.product-cell.editing select:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+
+    .constructions-table td.product-cell.editing input[type="number"] {
+        text-align: right;
+    }
+
+    /* Remove spinner buttons from number inputs in product cells */
+    .constructions-table td.product-cell.editing input[type="number"]::-webkit-outer-spin-button,
+    .constructions-table td.product-cell.editing input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .constructions-table td.product-cell.editing input[type="number"] {
+        -moz-appearance: textfield;
+    }
+
     /* Product selector dropdown */
     .product-selector {
         position: absolute;
