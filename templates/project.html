@@ -646,6 +646,58 @@
         -moz-appearance: textfield;
     }
 
+    /* Documentation links container */
+    .doc-links-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        align-items: center;
+    }
+
+    /* Documentation link badge */
+    .doc-link-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        background-color: #e7f3ff;
+        color: #0056b3;
+        border-radius: 3px;
+        font-size: 11px;
+        text-decoration: none;
+        white-space: nowrap;
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        border: 1px solid #b8daff;
+        transition: background-color 0.2s, border-color 0.2s;
+    }
+
+    .doc-link-badge:hover {
+        background-color: #cce5ff;
+        border-color: #80bdff;
+        text-decoration: none;
+        color: #004085;
+    }
+
+    /* Add documentation icon */
+    .add-doc-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        color: #adb5bd;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        border-radius: 50%;
+        transition: color 0.2s, background-color 0.2s;
+    }
+
+    .add-doc-icon:hover {
+        color: #007bff;
+        background-color: #e7f3ff;
+    }
+
     /* Editable construction cells */
     .constructions-table td.construction-cell.editable {
         cursor: pointer;
@@ -1260,6 +1312,25 @@
                 <button type="submit" class="btn btn-primary">Сохранить</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Add Documentation Modal -->
+<div class="modal-backdrop" id="addDocumentationModalBackdrop" onclick="closeAddDocumentationModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5>Добавить документацию</h5>
+        <div class="form-group">
+            <label for="docLinkInput">Ссылка на документацию *</label>
+            <input type="url" class="form-control-custom" id="docLinkInput" placeholder="https://example.com/document.pdf" required>
+        </div>
+        <div class="form-group">
+            <label for="docDescriptionInput">Описание (необязательно)</label>
+            <input type="text" class="form-control-custom" id="docDescriptionInput" placeholder="Чертеж, спецификация...">
+        </div>
+        <div class="btn-group-custom">
+            <button type="button" class="btn btn-outline-secondary" onclick="closeAddDocumentationModal()">Отмена</button>
+            <button type="button" class="btn btn-primary" onclick="saveDocumentation()">Сохранить</button>
+        </div>
     </div>
 </div>
 
