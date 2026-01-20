@@ -2028,7 +2028,7 @@ function addSelectedProduct() {
             closeProductSelector();
             // Reload constructions data to refresh the table
             if (selectedProject) {
-                loadConstructions(selectedProject['ПроектID']);
+                loadConstructionsData(selectedProject['ПроектID']);
             }
         } else {
             alert('Ошибка при добавлении изделия');
