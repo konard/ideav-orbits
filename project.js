@@ -2536,7 +2536,7 @@ function editProductCell(cell) {
         saveProductCellEdit(cell, this);
     });
 
-    // Handle keydown - Enter to save, Escape to cancel
+    // Handle keydown - Enter to save, Escape to cancel, Tab/Shift+Tab to navigate
     inputElement.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -2544,6 +2544,15 @@ function editProductCell(cell) {
         } else if (e.key === 'Escape') {
             e.preventDefault();
             cancelProductCellEdit(cell, this);
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+            // Save current cell
+            saveProductCellEdit(cell, this);
+            // Navigate to next/previous editable cell
+            const nextCell = findAdjacentEditableProductCell(cell, e.shiftKey ? 'prev' : 'next');
+            if (nextCell) {
+                editProductCell(nextCell);
+            }
         }
     });
 
@@ -2632,6 +2641,41 @@ function saveProductField(productId, field, value) {
         console.error(`Error saving product field ${field}:`, error);
         alert('Ошибка при сохранении');
     });
+}
+
+/**
+ * Find adjacent editable product cell for Tab navigation
+ * @param {HTMLElement} currentCell - The current cell element
+ * @param {string} direction - 'next' or 'prev'
+ * @returns {HTMLElement|null} - The adjacent editable cell or null
+ */
+function findAdjacentEditableProductCell(currentCell, direction) {
+    // Get all editable product cells in the table
+    const table = currentCell.closest('table');
+    if (!table) return null;
+
+    const editableCells = Array.from(table.querySelectorAll('.product-cell.editable'));
+    if (editableCells.length === 0) return null;
+
+    // Find current cell index
+    const currentIndex = editableCells.indexOf(currentCell);
+    if (currentIndex === -1) return null;
+
+    // Calculate next index based on direction
+    let nextIndex;
+    if (direction === 'next') {
+        nextIndex = currentIndex + 1;
+        if (nextIndex >= editableCells.length) {
+            nextIndex = 0; // Wrap to first cell
+        }
+    } else {
+        nextIndex = currentIndex - 1;
+        if (nextIndex < 0) {
+            nextIndex = editableCells.length - 1; // Wrap to last cell
+        }
+    }
+
+    return editableCells[nextIndex];
 }
 
 /**
