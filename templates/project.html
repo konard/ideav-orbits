@@ -861,6 +861,12 @@
     .bulk-add-product-icon.visible {
         display: inline;
     }
+
+    /* Add construction button */
+    .btn-add-construction {
+        white-space: nowrap;
+        margin-right: 15px;
+    }
 </style>
 
 <div class="project-list-container">
@@ -945,8 +951,9 @@
 
         <!-- Constructions Tab Content -->
         <div class="tab-content" id="constructionsTab">
-            <!-- Column visibility controls -->
+            <!-- Controls row with add button and column visibility -->
             <div class="column-controls">
+                <button class="btn btn-primary btn-sm btn-add-construction" onclick="promptAddConstruction()">+&nbsp;Конструкция</button>
                 <span class="column-controls-label">Колонки:</span>
                 <div class="column-toggle-group">
                     <label class="column-toggle-all">

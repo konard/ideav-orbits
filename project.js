@@ -1381,24 +1381,52 @@ function saveConstructionOrder() {
 }
 
 /**
- * Add new construction row
+ * Add new construction row (legacy function)
  */
 function addConstructionRow() {
-    if (!selectedProject) return;
+    promptAddConstruction();
+}
 
-    // TODO: Implement API call to create new construction row
-    console.log('Adding new construction row for project:', selectedProject['ПроектID']);
+/**
+ * Prompt user for construction name and create via API
+ */
+function promptAddConstruction() {
+    if (!selectedProject) {
+        alert('Выберите проект');
+        return;
+    }
 
-    // For now, add a placeholder row
-    const newRow = {
-        'КонструкцияID': 'new_' + Date.now(),
-        'КонструкцияOrder': (constructionsData.length + 1).toString(),
-        'Конструкция': '',
-        'Шаблон': ''
-    };
+    const constructionName = prompt('Введите название конструкции:');
+    if (!constructionName || !constructionName.trim()) {
+        return;
+    }
 
-    constructionsData.push(newRow);
-    displayConstructionsTable(constructionsData);
+    const projectId = selectedProject['ПроектID'];
+    const url = `https://${window.location.host}/${db}/_m_new/6132?JSON&up=${projectId}`;
+
+    const formData = new FormData();
+    formData.append('t6132', constructionName.trim());
+    if (typeof xsrf !== 'undefined' && xsrf) {
+        formData.append('_xsrf', xsrf);
+    }
+
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.obj) {
+            // Reload constructions table to show the new row
+            loadConstructionsData(projectId);
+        } else {
+            alert('Ошибка при создании конструкции');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating construction:', error);
+        alert('Ошибка при создании конструкции: ' + error.message);
+    });
 }
 
 /**
