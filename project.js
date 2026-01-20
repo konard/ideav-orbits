@@ -544,15 +544,42 @@ function showWorkTypeSelector(event, estimateId) {
     const btn = event.target;
     const rect = btn.getBoundingClientRect();
 
-    // Position selector near the button
-    selector.style.left = `${rect.left}px`;
-    selector.style.top = `${rect.bottom + 5}px`;
+    // Show selector first to get its dimensions
     selector.classList.remove('hidden');
 
     // Reset and populate work types
     document.getElementById('selectorDirection').value = '';
     document.getElementById('selectorWorkTypeSearch').value = '';
     populateWorkTypesList();
+
+    // Calculate position ensuring selector stays within viewport
+    const selectorRect = selector.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const margin = 20;
+
+    let left = rect.left;
+    let top = rect.bottom + 5;
+
+    // Adjust horizontal position if going off-screen
+    if (left + selectorRect.width > viewportWidth - margin) {
+        left = viewportWidth - selectorRect.width - margin;
+    }
+    if (left < margin) {
+        left = margin;
+    }
+
+    // Adjust vertical position if going off-screen
+    if (top + selectorRect.height > viewportHeight - margin) {
+        // Try to position above the button
+        top = rect.top - selectorRect.height - 5;
+        if (top < margin) {
+            top = margin;
+        }
+    }
+
+    selector.style.left = `${left}px`;
+    selector.style.top = `${top}px`;
 }
 
 /**

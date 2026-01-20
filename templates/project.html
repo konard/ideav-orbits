@@ -371,14 +371,16 @@
 
     /* Work type selector modal */
     .work-type-selector {
-        position: absolute;
+        position: fixed;
         background: white;
         border: 1px solid #ced4da;
         border-radius: 4px;
         padding: 15px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         z-index: 1000;
-        min-width: 350px;
+        min-width: 450px;
+        max-width: calc(100vw - 40px);
+        max-height: calc(100vh - 40px);
         resize: both;
         overflow: auto;
     }
