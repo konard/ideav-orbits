@@ -2821,6 +2821,13 @@ function formatLinkText(url) {
     // Trim whitespace
     url = url.trim();
 
+    // Decode URL-encoded characters (e.g., %D0%9F -> П for Cyrillic)
+    try {
+        url = decodeURIComponent(url);
+    } catch (e) {
+        // URL might contain invalid encoding, continue with original
+    }
+
     // Find last dot position
     const lastDotIndex = url.lastIndexOf('.');
 
