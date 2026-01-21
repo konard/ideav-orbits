@@ -1389,6 +1389,34 @@
     </div>
 </div>
 
+<!-- Add Construction Modal -->
+<div class="modal-backdrop" id="addConstructionModalBackdrop" onclick="closeAddConstructionModal()">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <h5>Добавить конструкции</h5>
+        <form id="addConstructionForm">
+            <div class="form-group">
+                <label for="constructionNamesInput">Названия конструкций *</label>
+                <textarea class="form-control-custom" id="constructionNamesInput" rows="8" placeholder="Введите названия конструкций (каждое название на новой строке)&#10;Пример:&#10;Стена-1&#10;Стена-2&#10;Колонна-1" required></textarea>
+                <small style="color: #6c757d; font-size: 12px;">Каждая непустая строка будет добавлена как отдельная конструкция</small>
+            </div>
+            <div class="btn-group-custom">
+                <button type="button" class="btn btn-outline-secondary" onclick="closeAddConstructionModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Добавить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Construction Insert Progress Modal -->
+<div class="modal-backdrop" id="constructionProgressBackdrop">
+    <div class="modal-dialog-custom" onclick="event.stopPropagation()">
+        <div class="delete-progress-container">
+            <div class="delete-progress-spinner"></div>
+            <p class="delete-progress-text">Вставляю конструкцию <span class="delete-progress-counter" id="constructionProgressCounter">0 из 0</span></p>
+        </div>
+    </div>
+</div>
+
 <script>
     // Load project.js dynamically
     (function() {

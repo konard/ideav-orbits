@@ -1424,7 +1424,7 @@ function addConstructionRow() {
 }
 
 /**
- * Prompt user for construction name and create via API
+ * Show modal for adding construction(s)
  */
 function promptAddConstruction() {
     if (!selectedProject) {
@@ -1432,12 +1432,29 @@ function promptAddConstruction() {
         return;
     }
 
-    const constructionName = prompt('Введите название конструкции:');
-    if (!constructionName || !constructionName.trim()) {
-        return;
-    }
+    // Clear previous input
+    document.getElementById('constructionNamesInput').value = '';
 
-    const projectId = selectedProject['ПроектID'];
+    // Show modal
+    document.getElementById('addConstructionModalBackdrop').classList.add('show');
+
+    // Focus on textarea
+    setTimeout(() => {
+        document.getElementById('constructionNamesInput').focus();
+    }, 100);
+}
+
+/**
+ * Close add construction modal
+ */
+function closeAddConstructionModal() {
+    document.getElementById('addConstructionModalBackdrop').classList.remove('show');
+}
+
+/**
+ * Create a single construction via API
+ */
+function createSingleConstruction(projectId, constructionName) {
     const url = `https://${window.location.host}/${db}/_m_new/6132?JSON&up=${projectId}`;
 
     const formData = new FormData();
@@ -1446,24 +1463,105 @@ function promptAddConstruction() {
         formData.append('_xsrf', xsrf);
     }
 
-    fetch(url, {
+    return fetch(url, {
         method: 'POST',
         body: formData
     })
     .then(response => response.json())
     .then(data => {
         if (data.obj) {
-            // Reload constructions table to show the new row
-            loadConstructionsData(projectId);
+            return { success: true, name: constructionName };
         } else {
-            alert('Ошибка при создании конструкции');
+            return { success: false, name: constructionName, error: 'API returned no object' };
         }
     })
     .catch(error => {
         console.error('Error creating construction:', error);
-        alert('Ошибка при создании конструкции: ' + error.message);
+        return { success: false, name: constructionName, error: error.message };
     });
 }
+
+/**
+ * Process construction names from textarea and insert them one by one
+ */
+async function processBatchConstructions(event) {
+    event.preventDefault();
+
+    const projectId = selectedProject['ПроектID'];
+    const inputText = document.getElementById('constructionNamesInput').value;
+
+    // Parse input: split by newlines and filter out empty/whitespace-only lines
+    const lines = inputText.split('\n');
+    const constructionNames = lines
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+    if (constructionNames.length === 0) {
+        alert('Введите хотя бы одно название конструкции');
+        return;
+    }
+
+    // Close the add construction modal
+    closeAddConstructionModal();
+
+    // Show progress modal
+    const progressBackdrop = document.getElementById('constructionProgressBackdrop');
+    const progressCounter = document.getElementById('constructionProgressCounter');
+    progressBackdrop.classList.add('show');
+
+    const totalCount = constructionNames.length;
+    let successCount = 0;
+    let failedConstructions = [];
+
+    // Insert constructions one by one
+    for (let i = 0; i < constructionNames.length; i++) {
+        const name = constructionNames[i];
+        const currentIndex = i + 1;
+
+        // Update progress counter
+        progressCounter.textContent = `${currentIndex} из ${totalCount}`;
+
+        // Insert construction and wait for response
+        const result = await createSingleConstruction(projectId, name);
+
+        if (result.success) {
+            successCount++;
+        } else {
+            failedConstructions.push(`${name}: ${result.error}`);
+        }
+    }
+
+    // Hide progress modal
+    progressBackdrop.classList.remove('show');
+
+    // Reload constructions table to show the new rows
+    loadConstructionsData(projectId);
+
+    // Show result message
+    if (failedConstructions.length === 0) {
+        alert(`Успешно добавлено конструкций: ${successCount}`);
+    } else {
+        const failedList = failedConstructions.join('\n');
+        alert(`Успешно добавлено: ${successCount}\nОшибки (${failedConstructions.length}):\n${failedList}`);
+    }
+}
+
+// Attach form submit handler when DOM is ready
+(function() {
+    function attachConstructionFormHandler() {
+        const addConstructionForm = document.getElementById('addConstructionForm');
+        if (addConstructionForm) {
+            addConstructionForm.addEventListener('submit', processBatchConstructions);
+        }
+    }
+
+    // Try to attach immediately if DOM is loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachConstructionFormHandler);
+    } else {
+        attachConstructionFormHandler();
+    }
+})();
 
 /**
  * Delete construction row
