@@ -4007,6 +4007,7 @@ async function confirmAddOperations() {
             const formData = new URLSearchParams();
             formData.append('t695', operation.name);
             formData.append('t702', operation.id);
+            formData.append('_xsrf', xsrf);
 
             const response = await fetch(url, {
                 method: 'POST',
