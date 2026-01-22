@@ -1320,7 +1320,26 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
                 html += `<td class="product-cell product-cell-with-operations" title="Позиция сметыID: ${prodPositionId}">
                     <span class="product-name">${escapeHtml(prod['Изделие'] || '—')}</span>
-                    <button class="btn-view-operations" data-product-id="${prodId}" data-product-name="${escapeHtml(prod['Изделие'] || '')}" data-construction="${escapeHtml(construction['Конструкция'] || '')}" data-estimate-position="${escapeHtml(position['Позиция сметы'] || '')}" data-estimate-position-id="${prodPositionId}" onclick="showOperationsModal(event, this)" title="Просмотр операций" style="display: none;">
+                    <button class="btn-view-operations"
+                        data-product-id="${prodId}"
+                        data-product-name="${escapeHtml(prod['Изделие'] || '')}"
+                        data-construction="${escapeHtml(construction['Конструкция'] || '')}"
+                        data-estimate-position="${escapeHtml(position['Позиция сметы'] || '')}"
+                        data-estimate-position-id="${prodPositionId}"
+                        data-zahvatka="${escapeHtml(construction['Захватка'] || '')}"
+                        data-osi="${escapeHtml(construction['Оси'] || '')}"
+                        data-vysotnie-otmetki="${escapeHtml(construction['Высотные отметки'] || '')}"
+                        data-etazh="${escapeHtml(construction['Этаж'] || '')}"
+                        data-markirovka="${escapeHtml(prod['Маркировка'] || '')}"
+                        data-vysota-ot-pola="${escapeHtml(prod['Высота от пола мм'] || '')}"
+                        data-dlina="${escapeHtml(prod['Длина, м'] || prod['Длина мм'] || '')}"
+                        data-vysota="${escapeHtml(prod['Высота, м'] || prod['Высота мм'] || '')}"
+                        data-ves-m2="${escapeHtml(prod['Вес на м2, кг'] || prod['Вес м2/кг'] || '')}"
+                        data-ed-izm="${escapeHtml(prod['Ед. изм'] || '')}"
+                        data-kolichestvo="${escapeHtml(prod['Количество'] || '')}"
+                        onclick="showOperationsModal(event, this)"
+                        title="Просмотр операций"
+                        style="display: none;">
                         <span class="operations-count">0</span>
                     </button>
                 </td>`;
@@ -3539,6 +3558,107 @@ document.addEventListener('click', function(event) {
 });
 
 /**
+ * Determine button color based on field validation and approval status
+ * Returns an object with background color and explanation
+ */
+function determineButtonColor(button, operations) {
+    // Check required fields
+    // Field values are stored in data attributes (empty string if not filled)
+    const zahvatka = button.getAttribute('data-zahvatka') || '';
+    const osi = button.getAttribute('data-osi') || '';
+    const vysotnieOtmetki = button.getAttribute('data-vysotnie-otmetki') || '';
+    const etazh = button.getAttribute('data-etazh') || '';
+    const markirovka = button.getAttribute('data-markirovka') || '';
+    const vysotaOtPola = button.getAttribute('data-vysota-ot-pola') || '';
+    const dlina = button.getAttribute('data-dlina') || '';
+    const vysota = button.getAttribute('data-vysota') || '';
+    const vesM2 = button.getAttribute('data-ves-m2') || '';
+    const edIzm = button.getAttribute('data-ed-izm') || '';
+    const kolichestvo = button.getAttribute('data-kolichestvo') || '';
+
+    // Check if all required fields are filled
+    // Note: For "Высотные отметки OR Этаж", at least one must be filled
+    const isEmDash = (val) => val === '—' || val.trim() === '';
+
+    const missingFields = [];
+    if (isEmDash(zahvatka)) missingFields.push('Захватка');
+    if (isEmDash(osi)) missingFields.push('Оси');
+    if (isEmDash(vysotnieOtmetki) && isEmDash(etazh)) missingFields.push('Высотные отметки или Этаж');
+    if (isEmDash(markirovka)) missingFields.push('Маркировка');
+    if (isEmDash(vysotaOtPola)) missingFields.push('Высота от пола мм');
+    if (isEmDash(dlina)) missingFields.push('Длина');
+    if (isEmDash(vysota)) missingFields.push('Высота');
+    if (isEmDash(vesM2)) missingFields.push('Вес м2/кг');
+    if (isEmDash(edIzm)) missingFields.push('Ед. изм');
+    if (isEmDash(kolichestvo)) missingFields.push('Количество');
+
+    // If any required fields are missing, return light gray
+    if (missingFields.length > 0) {
+        return {
+            background: '#d3d3d3', // light gray
+            title: `Не заполнены обязательные поля: ${missingFields.join(', ')}`
+        };
+    }
+
+    // All required fields are filled, check approval status (Согласование)
+    if (operations.length === 0) {
+        // No operations, default blue
+        return {
+            background: '#007bff', // blue (синий)
+            title: 'Просмотр операций'
+        };
+    }
+
+    // Count approval statuses
+    let allApproved = true;
+    let hasRejected = false;
+    let hasUnderApproval = false;
+
+    operations.forEach(op => {
+        const approval = op['Согласование'] || '';
+        if (approval === 'Согласовано') {
+            // This one is approved, continue checking
+        } else if (approval === 'Отклонено') {
+            hasRejected = true;
+            allApproved = false;
+        } else if (approval === 'На согласовании') {
+            hasUnderApproval = true;
+            allApproved = false;
+        } else {
+            // Any other status (including empty) means not all approved
+            allApproved = false;
+        }
+    });
+
+    // Determine color based on approval status priority:
+    // 1. If any rejected -> Orange
+    // 2. If any under approval -> Light blue (голубой)
+    // 3. If all approved -> Light green
+    // 4. Otherwise -> Blue (синий)
+    if (hasRejected) {
+        return {
+            background: '#ff8c00', // orange
+            title: 'Есть отклоненные операции'
+        };
+    } else if (hasUnderApproval) {
+        return {
+            background: '#87ceeb', // light blue (голубой)
+            title: 'Есть операции на согласовании'
+        };
+    } else if (allApproved && operations.length > 0) {
+        return {
+            background: '#90ee90', // light green
+            title: 'Все операции согласованы'
+        };
+    } else {
+        return {
+            background: '#007bff', // blue (синий)
+            title: 'Просмотр операций'
+        };
+    }
+}
+
+/**
  * Update operations buttons count and visibility
  */
 function updateOperationsButtons() {
@@ -3564,6 +3684,11 @@ function updateOperationsButtons() {
         if (countSpan) {
             countSpan.textContent = count;
         }
+
+        // Determine button color based on field validation and approval status
+        const colorInfo = determineButtonColor(button, operations);
+        button.style.background = colorInfo.background;
+        button.title = colorInfo.title;
 
         // Always show button if product is specified (even with 0 operations)
         button.style.display = 'inline-flex';
