@@ -1244,6 +1244,12 @@
         font-weight: normal;
     }
 
+    .modal-header-buttons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
     .close-modal-btn {
         background: none;
         border: none;
@@ -1354,6 +1360,74 @@
 
     #operationsModalBackdrop {
         z-index: 1050;
+    }
+
+    #addOperationsModalBackdrop {
+        z-index: 1060;
+    }
+
+    #progressModalBackdrop {
+        z-index: 1070;
+    }
+
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        border: 0.25em solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spinner-border 0.75s linear infinite;
+    }
+
+    @keyframes spinner-border {
+        to { transform: rotate(360deg); }
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0,0,0,0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+
+    .progress {
+        display: flex;
+        height: 1rem;
+        overflow: hidden;
+        font-size: 0.75rem;
+        background-color: #e9ecef;
+        border-radius: 0.25rem;
+    }
+
+    .progress-bar {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden;
+        color: #fff;
+        text-align: center;
+        white-space: nowrap;
+        background-color: #007bff;
+        transition: width 0.6s ease;
+    }
+
+    .progress-bar-striped {
+        background-image: linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent);
+        background-size: 1rem 1rem;
+    }
+
+    .progress-bar-animated {
+        animation: progress-bar-stripes 1s linear infinite;
+    }
+
+    @keyframes progress-bar-stripes {
+        from { background-position: 1rem 0; }
+        to { background-position: 0 0; }
     }
 </style>
 
@@ -1759,15 +1833,16 @@
                 <h5 id="operationsModalTitle">Операции</h5>
                 <p class="modal-subtitle" id="operationsModalSubtitle"></p>
             </div>
-            <button class="close-modal-btn" onclick="closeOperationsModal()" title="Закрыть">&times;</button>
-        </div>
-        <div class="modal-body-operations">
-            <div class="operations-controls">
-                <button class="btn btn-danger btn-sm" id="btnDeleteSelectedOperations" onclick="deleteSelectedOperations()" style="display: none;">
+            <div class="modal-header-buttons">
+                <button class="btn btn-primary btn-sm" id="btnAddOperations" onclick="openAddOperationsModal()" title="Добавить операции">+ Операции</button>
+                <button class="btn btn-danger btn-sm" id="btnDeleteSelectedOperations" onclick="deleteSelectedOperations()" style="display: none;" title="Удалить выбранные операции">
                     <span class="delete-icon">🗑</span>
                     <span id="deleteOperationsCount">Удалить</span>
                 </button>
+                <button class="close-modal-btn" onclick="closeOperationsModal()" title="Закрыть">&times;</button>
             </div>
+        </div>
+        <div class="modal-body-operations">
             <div class="operations-table-container">
                 <table class="operations-table">
                     <thead>
@@ -1784,6 +1859,63 @@
                         <!-- Operations will be loaded here -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Operations Modal -->
+<div class="modal-backdrop" id="addOperationsModalBackdrop" onclick="closeAddOperationsModal()" style="display: none;">
+    <div class="modal-dialog-operations" onclick="event.stopPropagation()">
+        <div class="modal-header-operations">
+            <div>
+                <h5 id="addOperationsModalTitle">Добавление операций</h5>
+                <p class="modal-subtitle" id="addOperationsModalSubtitle"></p>
+            </div>
+            <button class="close-modal-btn" onclick="closeAddOperationsModal()" title="Закрыть">&times;</button>
+        </div>
+        <div class="modal-body-operations">
+            <div id="addOperationsLoading" style="text-align: center; padding: 20px;">
+                <div class="spinner-border" role="status">
+                    <span class="sr-only">Загрузка...</span>
+                </div>
+            </div>
+            <div id="addOperationsContent" style="display: none;">
+                <div class="operations-controls">
+                    <button class="btn btn-success btn-sm" id="btnConfirmAddOperations" onclick="confirmAddOperations()" disabled title="Добавить выбранные операции">Добавить</button>
+                    <button class="btn btn-secondary btn-sm" onclick="invertOperationSelection()" title="Инвертировать выбор">Инвертировать</button>
+                </div>
+                <div class="operations-table-container">
+                    <table class="operations-table">
+                        <thead>
+                            <tr>
+                                <th class="col-checkbox">
+                                    <input type="checkbox" class="compact-checkbox" id="checkAllNewOperations" checked onchange="toggleAllNewOperations(this.checked)">
+                                </th>
+                                <th class="col-number">№</th>
+                                <th class="col-operation-name">Операция</th>
+                            </tr>
+                        </thead>
+                        <tbody id="newOperationsListBody">
+                            <!-- New operations will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Modal -->
+<div class="modal-backdrop" id="progressModalBackdrop" style="display: none;">
+    <div class="modal-dialog-operations" onclick="event.stopPropagation()" style="max-width: 400px;">
+        <div class="modal-header-operations">
+            <h5>Добавление операций</h5>
+        </div>
+        <div class="modal-body-operations" style="text-align: center;">
+            <p id="progressMessage">Добавлено 0 из 0</p>
+            <div class="progress" style="height: 25px;">
+                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
             </div>
         </div>
     </div>
