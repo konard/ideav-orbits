@@ -1185,6 +1185,9 @@ function displayConstructionsTable(data) {
     // Apply saved column visibility to newly rendered cells
     applyColumnVisibility();
     applyProductDetailsVisibility();
+
+    // Populate filter options after table is rendered
+    populateFilterOptions();
 }
 
 /**
@@ -2031,10 +2034,19 @@ function toggleColumnCheckboxes(type, checked) {
  * Update visibility of bulk add product icon based on checked estimate checkboxes
  */
 function updateBulkAddIconVisibility() {
-    const checkedEstimates = document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="estimate"]:checked');
+    const allCheckedEstimates = document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="estimate"]:checked');
+    // Count only checkboxes in visible rows
+    let visibleCheckedCount = 0;
+    allCheckedEstimates.forEach(cb => {
+        const row = cb.closest('tr');
+        if (row && row.style.display !== 'none') {
+            visibleCheckedCount++;
+        }
+    });
+
     const icon = document.getElementById('bulkAddProductIcon');
     if (icon) {
-        if (checkedEstimates.length > 0) {
+        if (visibleCheckedCount > 0) {
             icon.classList.add('visible');
         } else {
             icon.classList.remove('visible');
@@ -2361,27 +2373,36 @@ function updateBulkDeleteButtonVisibility() {
 function getSelectedItemsForDeletion() {
     const items = [];
 
-    // Get checked construction checkboxes
+    // Get checked construction checkboxes (only from visible rows)
     document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="construction"]:checked').forEach(cb => {
-        const id = cb.dataset.id;
-        if (id) {
-            items.push({ type: 'construction', id: id });
+        const row = cb.closest('tr');
+        if (row && row.style.display !== 'none') {
+            const id = cb.dataset.id;
+            if (id) {
+                items.push({ type: 'construction', id: id });
+            }
         }
     });
 
-    // Get checked estimate checkboxes
+    // Get checked estimate checkboxes (only from visible rows)
     document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="estimate"]:checked').forEach(cb => {
-        const id = cb.dataset.id;
-        if (id) {
-            items.push({ type: 'estimate', id: id });
+        const row = cb.closest('tr');
+        if (row && row.style.display !== 'none') {
+            const id = cb.dataset.id;
+            if (id) {
+                items.push({ type: 'estimate', id: id });
+            }
         }
     });
 
-    // Get checked product checkboxes
+    // Get checked product checkboxes (only from visible rows)
     document.querySelectorAll('.constructions-table input.compact-checkbox[data-type="product"]:checked').forEach(cb => {
-        const id = cb.dataset.id;
-        if (id) {
-            items.push({ type: 'product', id: id });
+        const row = cb.closest('tr');
+        if (row && row.style.display !== 'none') {
+            const id = cb.dataset.id;
+            if (id) {
+                items.push({ type: 'product', id: id });
+            }
         }
     });
 
@@ -3078,3 +3099,363 @@ function saveDocumentation() {
         alert('Ошибка при сохранении документации');
     });
 }
+
+// ============================================================================
+// FILTER FUNCTIONALITY FOR CONSTRUCTIONS TABLE
+// ============================================================================
+
+// Global state for filters
+let estimateFilterState = {
+    selectedValues: new Set(),
+    allValues: []
+};
+
+let productFilterState = {
+    selectedValues: new Set(),
+    allValues: []
+};
+
+// Populate filter options when table is loaded
+function populateFilterOptions() {
+    populateEstimateFilterOptions();
+    populateProductFilterOptions();
+}
+
+// Populate estimate filter options
+function populateEstimateFilterOptions() {
+    const estimateValues = new Set();
+
+    // Collect all unique estimate position values
+    document.querySelectorAll('.constructions-table td.estimate-cell').forEach(cell => {
+        const text = cell.textContent.trim().replace(/\+$/, '').trim(); // Remove the + icon
+        if (text && text !== '—') {
+            estimateValues.add(text);
+        }
+    });
+
+    estimateFilterState.allValues = Array.from(estimateValues).sort();
+    renderEstimateFilterOptions();
+}
+
+// Populate product filter options
+function populateProductFilterOptions() {
+    const productValues = new Set();
+
+    // Collect all unique product values
+    document.querySelectorAll('.constructions-table td.product-cell').forEach(cell => {
+        // Skip cells with editable class or data attributes (those are not the main product name cell)
+        if (!cell.classList.contains('editable') && !cell.hasAttribute('data-product-id')) {
+            const text = cell.textContent.trim();
+            if (text && text !== '—') {
+                productValues.add(text);
+            }
+        }
+    });
+
+    productFilterState.allValues = Array.from(productValues).sort();
+    renderProductFilterOptions();
+}
+
+// Render estimate filter options
+function renderEstimateFilterOptions() {
+    const container = document.getElementById('estimateFilterOptions');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    estimateFilterState.allValues.forEach(value => {
+        const option = document.createElement('div');
+        option.className = 'filter-option';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = estimateFilterState.selectedValues.has(value);
+        checkbox.onchange = () => toggleEstimateValue(value);
+
+        const label = document.createElement('span');
+        label.className = 'filter-option-label';
+        label.textContent = value;
+        label.onclick = () => {
+            checkbox.checked = !checkbox.checked;
+            toggleEstimateValue(value);
+        };
+
+        option.appendChild(checkbox);
+        option.appendChild(label);
+        container.appendChild(option);
+    });
+}
+
+// Render product filter options
+function renderProductFilterOptions() {
+    const container = document.getElementById('productFilterOptions');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    productFilterState.allValues.forEach(value => {
+        const option = document.createElement('div');
+        option.className = 'filter-option';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = productFilterState.selectedValues.has(value);
+        checkbox.onchange = () => toggleProductValue(value);
+
+        const label = document.createElement('span');
+        label.className = 'filter-option-label';
+        label.textContent = value;
+        label.onclick = () => {
+            checkbox.checked = !checkbox.checked;
+            toggleProductValue(value);
+        };
+
+        option.appendChild(checkbox);
+        option.appendChild(label);
+        container.appendChild(option);
+    });
+}
+
+// Toggle estimate filter value
+function toggleEstimateValue(value) {
+    if (estimateFilterState.selectedValues.has(value)) {
+        estimateFilterState.selectedValues.delete(value);
+    } else {
+        estimateFilterState.selectedValues.add(value);
+    }
+
+    renderEstimateFilterOptions();
+    applyFilters();
+    updateFilterIcons();
+}
+
+// Toggle product filter value
+function toggleProductValue(value) {
+    if (productFilterState.selectedValues.has(value)) {
+        productFilterState.selectedValues.delete(value);
+    } else {
+        productFilterState.selectedValues.add(value);
+    }
+
+    renderProductFilterOptions();
+    applyFilters();
+    updateFilterIcons();
+}
+
+// Toggle estimate filter dropdown
+function toggleEstimateFilter(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('estimateFilterDropdown');
+    const productDropdown = document.getElementById('productFilterDropdown');
+
+    // Close product dropdown if open
+    if (productDropdown) {
+        productDropdown.style.display = 'none';
+    }
+
+    if (dropdown) {
+        const isVisible = dropdown.style.display !== 'none';
+        dropdown.style.display = isVisible ? 'none' : 'block';
+
+        if (!isVisible) {
+            // Focus search input when opening
+            setTimeout(() => {
+                const searchInput = document.getElementById('estimateFilterSearch');
+                if (searchInput) searchInput.focus();
+            }, 100);
+        }
+    }
+}
+
+// Toggle product filter dropdown
+function toggleProductFilter(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('productFilterDropdown');
+    const estimateDropdown = document.getElementById('estimateFilterDropdown');
+
+    // Close estimate dropdown if open
+    if (estimateDropdown) {
+        estimateDropdown.style.display = 'none';
+    }
+
+    if (dropdown) {
+        const isVisible = dropdown.style.display !== 'none';
+        dropdown.style.display = isVisible ? 'none' : 'block';
+
+        if (!isVisible) {
+            // Focus search input when opening
+            setTimeout(() => {
+                const searchInput = document.getElementById('productFilterSearch');
+                if (searchInput) searchInput.focus();
+            }, 100);
+        }
+    }
+}
+
+// Filter estimate options based on search
+function filterEstimateOptions() {
+    const searchInput = document.getElementById('estimateFilterSearch');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+    const options = document.querySelectorAll('#estimateFilterOptions .filter-option');
+
+    options.forEach(option => {
+        const label = option.querySelector('.filter-option-label');
+        const text = label ? label.textContent.toLowerCase() : '';
+        option.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+    });
+}
+
+// Filter product options based on search
+function filterProductOptions() {
+    const searchInput = document.getElementById('productFilterSearch');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+    const options = document.querySelectorAll('#productFilterOptions .filter-option');
+
+    options.forEach(option => {
+        const label = option.querySelector('.filter-option-label');
+        const text = label ? label.textContent.toLowerCase() : '';
+        option.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+    });
+}
+
+// Clear estimate filter
+function clearEstimateFilter() {
+    estimateFilterState.selectedValues.clear();
+    renderEstimateFilterOptions();
+    applyFilters();
+    updateFilterIcons();
+
+    // Clear search input
+    const searchInput = document.getElementById('estimateFilterSearch');
+    if (searchInput) {
+        searchInput.value = '';
+        filterEstimateOptions();
+    }
+}
+
+// Clear product filter
+function clearProductFilter() {
+    productFilterState.selectedValues.clear();
+    renderProductFilterOptions();
+    applyFilters();
+    updateFilterIcons();
+
+    // Clear search input
+    const searchInput = document.getElementById('productFilterSearch');
+    if (searchInput) {
+        searchInput.value = '';
+        filterProductOptions();
+    }
+}
+
+// Apply filters to table rows
+function applyFilters() {
+    const tbody = document.querySelector('.constructions-table tbody');
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll('tr');
+
+    rows.forEach(row => {
+        let shouldShowRow = true;
+
+        // Check estimate filter
+        if (estimateFilterState.selectedValues.size > 0) {
+            const estimateCell = row.querySelector('td.estimate-cell');
+            if (estimateCell) {
+                const estimateText = estimateCell.textContent.trim().replace(/\+$/, '').trim();
+                shouldShowRow = shouldShowRow && estimateFilterState.selectedValues.has(estimateText);
+            } else {
+                // Row doesn't have estimate cell, might be a rowspan situation
+                shouldShowRow = false;
+            }
+        }
+
+        // Check product filter
+        if (productFilterState.selectedValues.size > 0 && shouldShowRow) {
+            const productCell = row.querySelector('td.product-cell:not(.editable):not([data-product-id])');
+            if (productCell) {
+                const productText = productCell.textContent.trim();
+                shouldShowRow = shouldShowRow && (productText === '—' || productFilterState.selectedValues.has(productText));
+            } else {
+                // Row doesn't have product cell, might be a rowspan situation
+                shouldShowRow = false;
+            }
+        }
+
+        // Show or hide row
+        if (shouldShowRow) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+
+            // Reset checkboxes on hidden rows
+            const checkboxes = row.querySelectorAll('input.compact-checkbox[data-type]');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+            });
+        }
+    });
+
+    // Update bulk delete and add buttons visibility after filtering
+    updateBulkDeleteButtonVisibility();
+    updateBulkAddIconVisibility();
+}
+
+// Update filter icon appearance
+function updateFilterIcons() {
+    const estimateIcon = document.querySelector('.col-estimate .filter-icon');
+    const productIcon = document.querySelector('.col-product .filter-icon');
+
+    if (estimateIcon) {
+        if (estimateFilterState.selectedValues.size > 0) {
+            estimateIcon.classList.add('active');
+        } else {
+            estimateIcon.classList.remove('active');
+        }
+    }
+
+    if (productIcon) {
+        if (productFilterState.selectedValues.size > 0) {
+            productIcon.classList.add('active');
+        } else {
+            productIcon.classList.remove('active');
+        }
+    }
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+    const estimateDropdown = document.getElementById('estimateFilterDropdown');
+    const productDropdown = document.getElementById('productFilterDropdown');
+
+    // Close estimate dropdown if clicking outside
+    if (estimateDropdown && estimateDropdown.style.display !== 'none') {
+        const estimateFilterIcon = document.querySelector('.col-estimate .filter-icon');
+        if (!estimateDropdown.contains(event.target) && event.target !== estimateFilterIcon) {
+            estimateDropdown.style.display = 'none';
+        }
+    }
+
+    // Close product dropdown if clicking outside
+    if (productDropdown && productDropdown.style.display !== 'none') {
+        const productFilterIcon = document.querySelector('.col-product .filter-icon');
+        if (!productDropdown.contains(event.target) && event.target !== productFilterIcon) {
+            productDropdown.style.display = 'none';
+        }
+    }
+});
+
+// Override toggleColumnCheckboxes to only affect visible rows
+const originalToggleColumnCheckboxes = window.toggleColumnCheckboxes;
+window.toggleColumnCheckboxes = function(type, checked) {
+    const checkboxes = document.querySelectorAll(`.constructions-table input.compact-checkbox[data-type="${type}"]:not(:disabled)`);
+    checkboxes.forEach(cb => {
+        // Only toggle checkboxes in visible rows
+        const row = cb.closest('tr');
+        if (row && row.style.display !== 'none') {
+            cb.checked = checked;
+        }
+    });
+    updateBulkAddIconVisibility();
+    updateBulkDeleteButtonVisibility();
+};

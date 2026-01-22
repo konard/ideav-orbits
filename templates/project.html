@@ -599,6 +599,120 @@
         color: #007bff;
     }
 
+    /* Filter icon styles */
+    .filter-icon {
+        display: inline-block;
+        margin-left: 8px;
+        color: #6c757d;
+        cursor: pointer;
+        font-size: 16px;
+        vertical-align: middle;
+        user-select: none;
+    }
+
+    .filter-icon:hover {
+        color: #007bff;
+    }
+
+    .filter-icon.active {
+        color: #007bff;
+        font-weight: bold;
+    }
+
+    /* Filter dropdown styles */
+    .filter-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        margin-top: 4px;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        min-width: 250px;
+        max-width: 400px;
+    }
+
+    .filter-dropdown-header {
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .filter-search-input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 13px;
+        box-sizing: border-box;
+    }
+
+    .filter-search-input:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+
+    .filter-dropdown-options {
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 4px 0;
+    }
+
+    .filter-option {
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-option:hover {
+        background-color: #f8f9fa;
+    }
+
+    .filter-option input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        cursor: pointer;
+    }
+
+    .filter-option-label {
+        flex: 1;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .filter-dropdown-footer {
+        padding: 8px;
+        border-top: 1px solid #dee2e6;
+        text-align: right;
+    }
+
+    .filter-clear-btn {
+        padding: 4px 12px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        color: #495057;
+    }
+
+    .filter-clear-btn:hover {
+        background-color: #e9ecef;
+        border-color: #adb5bd;
+    }
+
+    /* Header cells need position relative for absolute dropdown positioning */
+    .constructions-table th.col-estimate,
+    .constructions-table th.col-product {
+        position: relative;
+    }
+
     .constructions-table td.product-cell {
         background-color: #fffef8;
     }
@@ -1168,9 +1282,38 @@
                             <th class="col-construction" data-col="vysotm">Выс.отм.</th>
                             <th class="col-construction" data-col="etazh">Этаж</th>
                             <th class="col-checkbox" title="Выбрать все позиции сметы"><input type="checkbox" class="compact-checkbox" id="checkAllEstimates" onchange="toggleColumnCheckboxes('estimate', this.checked)"></th>
-                            <th class="col-estimate">Позиция сметы <span id="bulkAddProductIcon" class="bulk-add-product-icon" onclick="showBulkProductSelector(event)" title="Добавить изделие к выбранным позициям">+</span></th>
+                            <th class="col-estimate">
+                                Позиция сметы
+                                <span id="bulkAddProductIcon" class="bulk-add-product-icon" onclick="showBulkProductSelector(event)" title="Добавить изделие к выбранным позициям">+</span>
+                                <span class="filter-icon" onclick="toggleEstimateFilter(event)" title="Фильтровать по позиции сметы">▾</span>
+                                <div id="estimateFilterDropdown" class="filter-dropdown" style="display: none;">
+                                    <div class="filter-dropdown-header">
+                                        <input type="text" id="estimateFilterSearch" class="filter-search-input" placeholder="Поиск..." onkeyup="filterEstimateOptions()">
+                                    </div>
+                                    <div class="filter-dropdown-options" id="estimateFilterOptions">
+                                        <!-- Options will be populated dynamically -->
+                                    </div>
+                                    <div class="filter-dropdown-footer">
+                                        <button class="filter-clear-btn" onclick="clearEstimateFilter()">Сбросить</button>
+                                    </div>
+                                </div>
+                            </th>
                             <th class="col-checkbox" title="Выбрать все изделия"><input type="checkbox" class="compact-checkbox" id="checkAllProducts" onchange="toggleColumnCheckboxes('product', this.checked)"></th>
-                            <th class="col-product">Изделие</th>
+                            <th class="col-product">
+                                Изделие
+                                <span class="filter-icon" onclick="toggleProductFilter(event)" title="Фильтровать по изделию">▾</span>
+                                <div id="productFilterDropdown" class="filter-dropdown" style="display: none;">
+                                    <div class="filter-dropdown-header">
+                                        <input type="text" id="productFilterSearch" class="filter-search-input" placeholder="Поиск..." onkeyup="filterProductOptions()">
+                                    </div>
+                                    <div class="filter-dropdown-options" id="productFilterOptions">
+                                        <!-- Options will be populated dynamically -->
+                                    </div>
+                                    <div class="filter-dropdown-footer">
+                                        <button class="filter-clear-btn" onclick="clearProductFilter()">Сбросить</button>
+                                    </div>
+                                </div>
+                            </th>
                             <th class="col-product">Маркировка</th>
                             <th class="col-product">Докум.</th>
                             <th class="col-product" data-col="product-detail">Выс.пола</th>
