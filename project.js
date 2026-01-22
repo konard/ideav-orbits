@@ -3637,7 +3637,7 @@ function displayOperationsList(operations) {
             <td class="operation-number">${index + 1}</td>
             <td class="operation-name">
                 <div class="operation-name-main">${escapeHtml(operationName)}</div>
-                <div class="operation-name-sub">Направление: ${escapeHtml(directionName)} | Вид работ: ${escapeHtml(workTypeName)}</div>
+                <div class="operation-name-sub">${escapeHtml(directionName)} | ${escapeHtml(workTypeName)}</div>
             </td>
             <td class="operation-actions">
                 <button class="btn-delete-operation" onclick="deleteOperation('${operationId}')" title="Удалить операцию">
