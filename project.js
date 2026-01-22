@@ -3846,7 +3846,7 @@ async function openAddOperationsModal() {
 
     try {
         // Fetch available operations from API
-        const url = `https://${window.location.host}/download/${db}/report/7273?JSON_KV&FR_SID=${currentOperationsContext.estimatePositionId}&IID=${currentOperationsContext.productId}`;
+        const url = `https://${window.location.host}/${db}/report/7273?JSON_KV&FR_SID=${currentOperationsContext.estimatePositionId}&IID=${currentOperationsContext.productId}`;
 
         const response = await fetch(url, {
             method: 'GET',
@@ -4002,7 +4002,7 @@ async function confirmAddOperations() {
     // Add operations sequentially
     for (const operation of operations) {
         try {
-            const url = `https://${window.location.host}/download/${db}/_m_new/695?JSON&up=${currentOperationsContext.productId}`;
+            const url = `https://${window.location.host}/${db}/_m_new/695?JSON&up=${currentOperationsContext.productId}`;
 
             const formData = new URLSearchParams();
             formData.append('t695', operation.name);
