@@ -3141,12 +3141,15 @@ function populateEstimateFilterOptions() {
 function populateProductFilterOptions() {
     const productValues = new Set();
 
-    // Collect all unique product values
-    document.querySelectorAll('.constructions-table td.product-cell').forEach(cell => {
-        // Skip cells with editable class or data attributes (those are not the main product name cell)
-        if (!cell.classList.contains('editable') && !cell.hasAttribute('data-product-id')) {
-            const text = cell.textContent.trim();
-            if (text && text !== '—') {
+    // Collect all unique product values from the specific product name column
+    // The product name cell is the first td.product-cell that has a title attribute with "Позиция сметыID"
+    document.querySelectorAll('.constructions-table tbody tr').forEach(row => {
+        // Find the product name cell: it's the first product-cell with a title containing "Позиция сметыID"
+        const productNameCell = row.querySelector('td.product-cell[title^="Позиция сметыID"]');
+        if (productNameCell) {
+            const text = productNameCell.textContent.trim();
+            // Only add valid product names (not empty, not dash, and must be plain text without special chars)
+            if (text && text !== '—' && !text.includes('%') && !text.includes('+')) {
                 productValues.add(text);
             }
         }
@@ -3353,47 +3356,108 @@ function applyFilters() {
     const tbody = document.querySelector('.constructions-table tbody');
     if (!tbody) return;
 
-    const rows = tbody.querySelectorAll('tr');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    // Group rows by construction (rows that share the same construction cells via rowspan)
+    // We need to track which rows belong to the same construction group
+    const constructionGroups = [];
+    let currentGroup = [];
 
     rows.forEach(row => {
-        let shouldShowRow = true;
-
-        // Check estimate filter
-        if (estimateFilterState.selectedValues.size > 0) {
-            const estimateCell = row.querySelector('td.estimate-cell');
-            if (estimateCell) {
-                const estimateText = estimateCell.textContent.trim().replace(/\+$/, '').trim();
-                shouldShowRow = shouldShowRow && estimateFilterState.selectedValues.has(estimateText);
-            } else {
-                // Row doesn't have estimate cell, might be a rowspan situation
-                shouldShowRow = false;
-            }
-        }
-
-        // Check product filter
-        if (productFilterState.selectedValues.size > 0 && shouldShowRow) {
-            const productCell = row.querySelector('td.product-cell:not(.editable):not([data-product-id])');
-            if (productCell) {
-                const productText = productCell.textContent.trim();
-                shouldShowRow = shouldShowRow && (productText === '—' || productFilterState.selectedValues.has(productText));
-            } else {
-                // Row doesn't have product cell, might be a rowspan situation
-                shouldShowRow = false;
-            }
-        }
-
-        // Show or hide row
-        if (shouldShowRow) {
-            row.style.display = '';
+        // If row has a construction cell (with rowspan or not), it starts a new group
+        const hasConstructionCell = row.querySelector('td.construction-cell');
+        if (hasConstructionCell && currentGroup.length > 0) {
+            // Save previous group
+            constructionGroups.push(currentGroup);
+            currentGroup = [row];
         } else {
-            row.style.display = 'none';
-
-            // Reset checkboxes on hidden rows
-            const checkboxes = row.querySelectorAll('input.compact-checkbox[data-type]');
-            checkboxes.forEach(cb => {
-                cb.checked = false;
-            });
+            currentGroup.push(row);
         }
+    });
+
+    // Don't forget the last group
+    if (currentGroup.length > 0) {
+        constructionGroups.push(currentGroup);
+    }
+
+    // Process each construction group
+    constructionGroups.forEach(group => {
+        // Determine if any row in this group should be visible based on filters
+        let groupHasVisibleRow = false;
+
+        group.forEach(row => {
+            let shouldShowRow = true;
+
+            // Check estimate filter
+            if (estimateFilterState.selectedValues.size > 0) {
+                const estimateCell = row.querySelector('td.estimate-cell');
+                if (estimateCell) {
+                    const estimateText = estimateCell.textContent.trim().replace(/\+$/, '').trim();
+                    shouldShowRow = shouldShowRow && estimateFilterState.selectedValues.has(estimateText);
+                } else {
+                    // Row doesn't have estimate cell - it's part of a rowspan
+                    // Check if previous row in group has a matching estimate
+                    const prevRowInGroup = group.find(r => r !== row && r.querySelector('td.estimate-cell'));
+                    if (prevRowInGroup) {
+                        const prevEstimateCell = prevRowInGroup.querySelector('td.estimate-cell');
+                        const prevEstimateText = prevEstimateCell.textContent.trim().replace(/\+$/, '').trim();
+                        shouldShowRow = shouldShowRow && estimateFilterState.selectedValues.has(prevEstimateText);
+                    } else {
+                        shouldShowRow = false;
+                    }
+                }
+            }
+
+            // Check product filter
+            if (productFilterState.selectedValues.size > 0 && shouldShowRow) {
+                const productCell = row.querySelector('td.product-cell[title^="Позиция сметыID"]');
+                if (productCell) {
+                    const productText = productCell.textContent.trim();
+                    shouldShowRow = shouldShowRow && (productText === '—' || productFilterState.selectedValues.has(productText));
+                } else {
+                    // No product cell in this row - might be acceptable (e.g., rows without products)
+                    // Don't hide the row just because it doesn't have a product
+                }
+            }
+
+            // Track if any row in group should be visible
+            if (shouldShowRow) {
+                groupHasVisibleRow = true;
+            }
+
+            // Store the row's individual visibility decision
+            row.dataset.individualVisibility = shouldShowRow ? 'visible' : 'hidden';
+        });
+
+        // Now apply visibility to all rows in the group
+        // If the group has at least one visible row, show all rows in the group
+        // This preserves the rowspan structure
+        group.forEach(row => {
+            const individuallyVisible = row.dataset.individualVisibility === 'visible';
+
+            if (individuallyVisible) {
+                // Show this row since it matches filters
+                row.style.display = '';
+            } else {
+                // Hide this row, but only if no other row in its group is visible
+                if (groupHasVisibleRow) {
+                    // Keep row visible to maintain rowspan structure
+                    row.style.display = '';
+                } else {
+                    // Hide the entire group
+                    row.style.display = 'none';
+
+                    // Reset checkboxes on hidden rows
+                    const checkboxes = row.querySelectorAll('input.compact-checkbox[data-type]');
+                    checkboxes.forEach(cb => {
+                        cb.checked = false;
+                    });
+                }
+            }
+
+            // Clean up temporary attribute
+            delete row.dataset.individualVisibility;
+        });
     });
 
     // Update bulk delete and add buttons visibility after filtering
