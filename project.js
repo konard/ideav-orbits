@@ -2804,6 +2804,8 @@ function saveProductField(productId, field, value) {
     .then(response => response.json())
     .then(data => {
         console.log(`Saved product field ${field} for ${productId}:`, data);
+        // Update button data attributes and color after successful save
+        updateOperationsButtonDataAndColor(productId, field, value);
     })
     .catch(error => {
         console.error(`Error saving product field ${field}:`, error);
@@ -2966,10 +2968,147 @@ function saveConstructionField(constructionId, field, value, saveMethod) {
     .then(response => response.json())
     .then(data => {
         console.log(`Saved construction field ${field} for ${constructionId}:`, data);
+        // Update button data attributes and color after successful save
+        updateOperationsButtonsForConstruction(constructionId, field, value);
     })
     .catch(error => {
         console.error(`Error saving construction field ${field}:`, error);
         alert('Ошибка при сохранении');
+    });
+}
+
+/**
+ * Update operations button data attributes and color for a specific product
+ * @param {string} productId - The product ID
+ * @param {string} field - The field parameter (e.g., t6997)
+ * @param {string} value - The new value
+ */
+function updateOperationsButtonDataAndColor(productId, field, value) {
+    // Find all buttons for this product
+    const buttons = document.querySelectorAll(`.btn-view-operations[data-product-id="${productId}"]`);
+
+    if (buttons.length === 0) {
+        return;
+    }
+
+    // Map field IDs to data attribute names
+    const fieldToDataAttr = {
+        't6997': 'data-markirovka',       // Маркировка
+        't6999': 'data-vysota-ot-pola',   // Высота от пола мм
+        't6136': 'data-dlina',            // Длина
+        't6144': 'data-vysota',           // Высота
+        't6146': 'data-ves-m2',           // Вес м2/кг
+        't7238': 'data-ed-izm',           // Ед. изм
+        't7237': 'data-kolichestvo'       // Количество
+    };
+
+    const dataAttr = fieldToDataAttr[field];
+    if (!dataAttr) {
+        return; // Not a field we track on the button
+    }
+
+    // Update each button's data attribute and color
+    buttons.forEach(button => {
+        button.setAttribute(dataAttr, value);
+
+        // Get operations for this button and update color
+        const productIdFromButton = button.getAttribute('data-product-id');
+        if (productIdFromButton && currentOperations && currentOperations[productIdFromButton]) {
+            const operations = currentOperations[productIdFromButton] || [];
+            const colorData = determineButtonColor(button, operations);
+            button.style.background = colorData.background;
+            button.title = colorData.title;
+        }
+    });
+}
+
+/**
+ * Update operations buttons for all products in a construction when construction field changes
+ * @param {string} constructionId - The construction ID
+ * @param {string} field - The field parameter (e.g., t6989)
+ * @param {string} value - The new value
+ */
+function updateOperationsButtonsForConstruction(constructionId, field, value) {
+    // Map field IDs to data attribute names
+    const fieldToDataAttr = {
+        't6989': 'data-zahvatka',         // Захватка
+        't6991': 'data-osi',              // Оси
+        't6993': 'data-vysotnie-otmetki', // Высотные отметки
+        't6995': 'data-etazh'             // Этаж
+    };
+
+    const dataAttr = fieldToDataAttr[field];
+    if (!dataAttr) {
+        return; // Not a field we track on the button
+    }
+
+    // Find all buttons in rows that belong to this construction
+    // The construction ID is stored in construction cells, we need to find products in the same construction
+    const constructionRow = document.querySelector(`[data-construction-id="${constructionId}"]`);
+    if (!constructionRow) {
+        return;
+    }
+
+    // Get the table and find all rows with buttons that share the same construction
+    const table = constructionRow.closest('table');
+    if (!table) {
+        return;
+    }
+
+    // Find all product rows within this construction by traversing table rows
+    // We need a different approach: find all buttons and check if they're in the construction's scope
+    // Since the construction data is in data attributes of the button itself, we can search for buttons
+    // that have matching construction-related data (though this is not stored on button directly)
+
+    // Better approach: Find the construction cell, then traverse sibling rows until we hit another construction
+    const allButtons = table.querySelectorAll('.btn-view-operations');
+
+    allButtons.forEach(button => {
+        // Check if this button's row is part of this construction
+        // We can check by looking at the construction-cell in the same row or previous rows
+        const buttonRow = button.closest('tr');
+        if (!buttonRow) return;
+
+        // Find the construction cell in this row or in a previous row with rowspan
+        let constructionCell = buttonRow.querySelector(`[data-construction-id="${constructionId}"]`);
+
+        // If not in current row, check if we're within the rowspan of a previous construction cell
+        if (!constructionCell) {
+            // Look backwards in the table to find the construction this row belongs to
+            let currentRow = buttonRow;
+            while (currentRow.previousElementSibling) {
+                currentRow = currentRow.previousElementSibling;
+                const cellInPrevRow = currentRow.querySelector('[data-construction-id]');
+                if (cellInPrevRow) {
+                    // Check if this cell has rowspan that covers our button's row
+                    const rowspan = parseInt(cellInPrevRow.getAttribute('rowspan') || '1');
+                    const prevRowIndex = Array.from(table.querySelectorAll('tbody tr')).indexOf(currentRow);
+                    const buttonRowIndex = Array.from(table.querySelectorAll('tbody tr')).indexOf(buttonRow);
+
+                    if (prevRowIndex >= 0 && buttonRowIndex >= 0 &&
+                        buttonRowIndex < prevRowIndex + rowspan) {
+                        if (cellInPrevRow.getAttribute('data-construction-id') === constructionId) {
+                            constructionCell = cellInPrevRow;
+                        }
+                    }
+                    break; // Stop at first construction cell we find
+                }
+            }
+        }
+
+        // If this button belongs to this construction, update it
+        if (constructionCell) {
+            button.setAttribute(dataAttr, value);
+
+            // Get operations for this button and update color
+            const productId = button.getAttribute('data-product-id');
+            if (productId && currentOperations && currentOperations[productId]) {
+                const operations = currentOperations[productId] || [];
+                const colorData = determineButtonColor(button, operations);
+                button.style.background = colorData.background;
+                button.title = colorData.title;
+            }
+        }
     });
 }
 
