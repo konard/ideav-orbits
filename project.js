@@ -2908,6 +2908,33 @@ function saveConstructionField(constructionId, field, value, saveMethod) {
 let currentDocAddContext = null; // {parentId, parentType}
 
 /**
+ * Safely decode URL-encoded characters, handling partially or incorrectly encoded URLs
+ * @param {string} str - The string to decode
+ * @returns {string} - Decoded string (partial decoding if some sequences are invalid)
+ */
+function safeDecodeURIComponent(str) {
+    // First, try standard decoding
+    try {
+        return decodeURIComponent(str);
+    } catch (e) {
+        // If standard decoding fails, decode only valid percent-encoded sequences
+        // This handles cases where the URL is partially encoded or has invalid sequences
+        try {
+            return str.replace(/%[0-9A-Fa-f]{2}/g, (match) => {
+                try {
+                    return decodeURIComponent(match);
+                } catch {
+                    return match; // Keep the original if it can't be decoded
+                }
+            });
+        } catch {
+            // If even selective decoding fails, return the original string
+            return str;
+        }
+    }
+}
+
+/**
  * Format link text for display in badge
  * Shows last 5 characters before last dot + extension, or last 13 characters if no extension
  * @param {string} url - The URL to format
@@ -2919,12 +2946,8 @@ function formatLinkText(url) {
     // Trim whitespace
     url = url.trim();
 
-    // Decode URL-encoded characters (e.g., %D0%9F -> П for Cyrillic)
-    try {
-        url = decodeURIComponent(url);
-    } catch (e) {
-        // URL might contain invalid encoding, continue with original
-    }
+    // Decode URL-encoded characters safely (handles mixed/partial encoding)
+    url = safeDecodeURIComponent(url);
 
     // Find last dot position
     const lastDotIndex = url.lastIndexOf('.');
