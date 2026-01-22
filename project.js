@@ -2986,7 +2986,7 @@ function safeDecodeURIComponent(str) {
 
 /**
  * Format link text for display in badge
- * Shows last 5 characters before last dot + extension, or last 13 characters if no extension
+ * Shows last 5 characters before last dot + extension, or last 16 characters if no extension
  * @param {string} url - The URL to format
  * @returns {string} - Formatted short text
  */
@@ -3011,14 +3011,14 @@ function formatLinkText(url) {
         const shortPart = beforeDot.length > 5 ? beforeDot.substring(beforeDot.length - 5) : beforeDot;
         const result = shortPart + extension;
 
-        // If result is longer than 13 characters, just use last 13
-        if (result.length > 13) {
-            return url.substring(url.length - 13);
+        // If result is longer than 16 characters, just use last 16
+        if (result.length > 16) {
+            return url.substring(url.length - 16);
         }
         return result;
     } else {
-        // No extension or unusual format - use last 13 characters
-        return url.length > 13 ? url.substring(url.length - 13) : url;
+        // No extension or unusual format - use last 16 characters
+        return url.length > 16 ? url.substring(url.length - 16) : url;
     }
 }
 
