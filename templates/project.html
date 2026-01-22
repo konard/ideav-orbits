@@ -1164,6 +1164,191 @@
         font-weight: bold;
         color: #dc3545;
     }
+
+    /* Operations button in product cell */
+    .product-cell-with-operations {
+        position: relative;
+    }
+
+    .product-name {
+        display: inline-block;
+        max-width: calc(100% - 50px);
+    }
+
+    .btn-view-operations {
+        position: absolute;
+        right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2px 6px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.2s;
+        min-width: 24px;
+        height: 20px;
+    }
+
+    .btn-view-operations:hover {
+        background: #0056b3;
+    }
+
+    .operations-count {
+        font-size: 11px;
+    }
+
+    /* Operations modal */
+    .modal-dialog-operations {
+        background: white;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .modal-header-operations {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 20px;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .modal-header-operations h5 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #212529;
+    }
+
+    .modal-subtitle {
+        margin: 5px 0 0 0;
+        font-size: 13px;
+        color: #6c757d;
+        font-weight: normal;
+    }
+
+    .close-modal-btn {
+        background: none;
+        border: none;
+        font-size: 28px;
+        font-weight: 300;
+        color: #6c757d;
+        cursor: pointer;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        line-height: 1;
+        transition: color 0.2s;
+    }
+
+    .close-modal-btn:hover {
+        color: #000;
+    }
+
+    .modal-body-operations {
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .operations-controls {
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: flex-start;
+    }
+
+    .operations-table-container {
+        overflow-x: auto;
+    }
+
+    .operations-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .operations-table thead {
+        background: #f8f9fa;
+    }
+
+    .operations-table th {
+        padding: 10px 8px;
+        text-align: left;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .operations-table td {
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+        vertical-align: middle;
+    }
+
+    .operations-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+
+    .operations-table .col-checkbox {
+        width: 40px;
+        text-align: center;
+    }
+
+    .operations-table .col-number {
+        width: 50px;
+        text-align: center;
+        color: #6c757d;
+    }
+
+    .operations-table .col-operation-name {
+        min-width: 300px;
+    }
+
+    .operations-table .col-actions {
+        width: 50px;
+        text-align: center;
+    }
+
+    .operation-name-main {
+        font-weight: 500;
+        color: #212529;
+        margin-bottom: 4px;
+    }
+
+    .operation-name-sub {
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .btn-delete-operation {
+        padding: 4px 8px;
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+        font-size: 16px;
+    }
+
+    .btn-delete-operation:hover {
+        opacity: 1;
+    }
+
+    #operationsModalBackdrop {
+        z-index: 1050;
+    }
 </style>
 
 <div class="project-list-container">
@@ -1556,6 +1741,44 @@
         <div class="delete-progress-container">
             <div class="delete-progress-spinner"></div>
             <p class="delete-progress-text">Вставляю конструкцию <span class="delete-progress-counter" id="constructionProgressCounter">0 из 0</span></p>
+        </div>
+    </div>
+</div>
+
+<!-- Operations Modal -->
+<div class="modal-backdrop" id="operationsModalBackdrop" onclick="closeOperationsModal()">
+    <div class="modal-dialog-operations" onclick="event.stopPropagation()">
+        <div class="modal-header-operations">
+            <div>
+                <h5 id="operationsModalTitle">Операции</h5>
+                <p class="modal-subtitle" id="operationsModalSubtitle"></p>
+            </div>
+            <button class="close-modal-btn" onclick="closeOperationsModal()" title="Закрыть">&times;</button>
+        </div>
+        <div class="modal-body-operations">
+            <div class="operations-controls">
+                <button class="btn btn-danger btn-sm" id="btnDeleteSelectedOperations" onclick="deleteSelectedOperations()" style="display: none;">
+                    <span class="delete-icon">🗑</span>
+                    <span id="deleteOperationsCount">Удалить</span>
+                </button>
+            </div>
+            <div class="operations-table-container">
+                <table class="operations-table">
+                    <thead>
+                        <tr>
+                            <th class="col-checkbox">
+                                <input type="checkbox" class="compact-checkbox" id="checkAllOperations" onchange="toggleAllOperations(this.checked)">
+                            </th>
+                            <th class="col-number">№</th>
+                            <th class="col-operation-name">Операция</th>
+                            <th class="col-actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="operationsListBody">
+                        <!-- Operations will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
