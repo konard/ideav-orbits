@@ -29,6 +29,10 @@ let pendingDeleteConstructionRowId = null;
 let allProductsReference = [];
 let currentProductAddContext = null; // {constructionId, estimatePositionId}
 
+// Operations data
+let operationsData = []; // Data from report/5977
+let currentOperationsProductId = null; // Currently viewed product's operations
+
 /**
  * Initialize the project workspace
  */
@@ -1109,21 +1113,24 @@ function confirmDeleteEstimateRow() {
  * Load constructions data with nested estimate positions and products
  */
 function loadConstructionsData(projectId) {
-    // Load all three datasets in parallel
+    // Load all four datasets in parallel
     Promise.all([
         fetch(`https://${window.location.host}/${db}/report/6665?JSON_KV&FR_ProjectID=${projectId}`).then(r => r.json()),
         fetch(`https://${window.location.host}/${db}/report/7148?JSON_KV&FR_ProjectID=${projectId}`).then(r => r.json()),
-        fetch(`https://${window.location.host}/${db}/report/6503?JSON_KV&FR_ProjectID=${projectId}`).then(r => r.json())
+        fetch(`https://${window.location.host}/${db}/report/6503?JSON_KV&FR_ProjectID=${projectId}`).then(r => r.json()),
+        fetch(`https://${window.location.host}/${db}/report/5977?JSON_KV&FR_ProjectID=${projectId}`).then(r => r.json())
     ])
-    .then(([constructions, estimatePositions, products]) => {
+    .then(([constructions, estimatePositions, products, operations]) => {
         constructionsData = constructions || [];
         constructionEstimatePositions = estimatePositions || [];
         constructionProducts = products || [];
+        operationsData = operations || [];
 
         // Debug logging to verify data is loaded
         console.log('Constructions loaded:', constructionsData.length, 'items');
         console.log('Estimate positions loaded:', constructionEstimatePositions.length, 'items');
         console.log('Products loaded:', constructionProducts.length, 'items');
+        console.log('Operations loaded:', operationsData.length, 'items');
 
         if (constructionEstimatePositions.length > 0) {
             console.log('Sample estimate position:', constructionEstimatePositions[0]);
@@ -1135,13 +1142,20 @@ function loadConstructionsData(projectId) {
             console.log('Product fields:', Object.keys(constructionProducts[0]));
         }
 
+        if (operationsData.length > 0) {
+            console.log('Sample operation:', operationsData[0]);
+            console.log('Operation fields:', Object.keys(operationsData[0]));
+        }
+
         displayConstructionsTable(constructionsData);
+        updateOperationsButtons();
     })
     .catch(error => {
         console.error('Error loading constructions data:', error);
         constructionsData = [];
         constructionEstimatePositions = [];
         constructionProducts = [];
+        operationsData = [];
         displayConstructionsTable([]);
     });
 }
@@ -1303,7 +1317,12 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 const prodId = prod['ИзделиеID'] || '?';
                 const unitId = prod['Ед. изм ID'] || prod['ЕдИзмID'] || '';
                 html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
-                html += `<td class="product-cell" title="Позиция сметыID: ${prodPositionId}">${escapeHtml(prod['Изделие'] || '—')}</td>`;
+                html += `<td class="product-cell product-cell-with-operations" title="Позиция сметыID: ${prodPositionId}">
+                    <span class="product-name">${escapeHtml(prod['Изделие'] || '—')}</span>
+                    <button class="btn-view-operations" data-product-id="${prodId}" data-product-name="${escapeHtml(prod['Изделие'] || '')}" data-construction="${escapeHtml(construction['Конструкция'] || '')}" data-estimate-position="${escapeHtml(position['Позиция сметы'] || '')}" onclick="showOperationsModal(event, this)" title="Просмотр операций" style="display: none;">
+                        <span class="operations-count">0</span>
+                    </button>
+                </td>`;
                 html += `<td class="product-cell editable" data-product-id="${prodId}" data-field="t6997" data-field-type="text" onclick="editProductCell(this)">${escapeHtml(prod['Маркировка'] || '—')}</td>`;
                 html += `<td class="product-cell">${formatDocumentationLinks(prod['Документация'] || prod['Документация по изделию'] || prod['Вид документации'], prodId, 'product')}</td>`;
                 html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6999" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Высота от пола мм'] || '—')}</td>`;
@@ -3508,6 +3527,289 @@ document.addEventListener('click', function(event) {
         }
     }
 });
+
+/**
+ * Update operations buttons count and visibility
+ */
+function updateOperationsButtons() {
+    // Count operations per product
+    const operationsByProduct = new Map();
+    operationsData.forEach(op => {
+        const productId = op['ИзделиеID'];
+        if (productId) {
+            if (!operationsByProduct.has(productId)) {
+                operationsByProduct.set(productId, []);
+            }
+            operationsByProduct.get(productId).push(op);
+        }
+    });
+
+    // Update all operation buttons
+    document.querySelectorAll('.btn-view-operations').forEach(button => {
+        const productId = button.getAttribute('data-product-id');
+        const operations = operationsByProduct.get(productId) || [];
+        const count = operations.length;
+
+        const countSpan = button.querySelector('.operations-count');
+        if (countSpan) {
+            countSpan.textContent = count;
+        }
+
+        // Only show button if there are operations
+        button.style.display = count > 0 ? 'inline-flex' : 'none';
+    });
+}
+
+/**
+ * Show operations modal for a product
+ */
+function showOperationsModal(event, button) {
+    event.stopPropagation();
+
+    const productId = button.getAttribute('data-product-id');
+    const productName = button.getAttribute('data-product-name');
+    const construction = button.getAttribute('data-construction');
+    const estimatePosition = button.getAttribute('data-estimate-position');
+
+    currentOperationsProductId = productId;
+
+    // Filter operations for this product
+    const productOperations = operationsData.filter(op => String(op['ИзделиеID']) === String(productId));
+
+    // Update modal title
+    const modalTitle = document.getElementById('operationsModalTitle');
+    if (modalTitle) {
+        modalTitle.textContent = `Операции: ${productName}`;
+    }
+
+    const modalSubtitle = document.getElementById('operationsModalSubtitle');
+    if (modalSubtitle) {
+        modalSubtitle.textContent = `Конструкция: ${construction} | Позиция сметы: ${estimatePosition}`;
+    }
+
+    // Populate operations list
+    displayOperationsList(productOperations);
+
+    // Show modal
+    const modal = document.getElementById('operationsModalBackdrop');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+/**
+ * Display operations list in modal
+ */
+function displayOperationsList(operations) {
+    const tbody = document.getElementById('operationsListBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (operations.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #999;">Операции не найдены</td></tr>';
+        updateOperationsDeleteButton();
+        return;
+    }
+
+    operations.forEach((op, index) => {
+        const operationId = op['ОперацииID'] || op['ОперацияID'];
+        const operationName = op['Операция'] || '—';
+        const workTypeId = op['Вид работID'] || '';
+
+        // Find work type info from reference
+        let workTypeName = '—';
+        let directionName = '—';
+
+        if (workTypeId && workTypesReference) {
+            const workType = workTypesReference.find(wt => String(wt['Вид работID']) === String(workTypeId));
+            if (workType) {
+                workTypeName = workType['Вид работ'] || '—';
+                directionName = workType['Направление'] || '—';
+            }
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="col-checkbox">
+                <input type="checkbox" class="compact-checkbox operation-checkbox" data-operation-id="${operationId}" onchange="updateOperationsDeleteButton()">
+            </td>
+            <td class="operation-number">${index + 1}</td>
+            <td class="operation-name">
+                <div class="operation-name-main">${escapeHtml(operationName)}</div>
+                <div class="operation-name-sub">Направление: ${escapeHtml(directionName)} | Вид работ: ${escapeHtml(workTypeName)}</div>
+            </td>
+            <td class="operation-actions">
+                <button class="btn-delete-operation" onclick="deleteOperation('${operationId}')" title="Удалить операцию">
+                    <span class="delete-icon">🗑</span>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    updateOperationsDeleteButton();
+}
+
+/**
+ * Update operations delete button visibility and count
+ */
+function updateOperationsDeleteButton() {
+    const checkboxes = document.querySelectorAll('.operation-checkbox:checked');
+    const count = checkboxes.length;
+    const deleteButton = document.getElementById('btnDeleteSelectedOperations');
+
+    if (deleteButton) {
+        if (count > 0) {
+            deleteButton.style.display = 'inline-block';
+            const countSpan = document.getElementById('deleteOperationsCount');
+            if (countSpan) {
+                countSpan.textContent = `Удалить (${count})`;
+            }
+        } else {
+            deleteButton.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Toggle all operations checkboxes
+ */
+function toggleAllOperations(checked) {
+    document.querySelectorAll('.operation-checkbox').forEach(cb => {
+        cb.checked = checked;
+    });
+    updateOperationsDeleteButton();
+}
+
+/**
+ * Delete selected operations
+ */
+function deleteSelectedOperations() {
+    const checkboxes = document.querySelectorAll('.operation-checkbox:checked');
+    if (checkboxes.length === 0) return;
+
+    if (!confirm(`Вы уверены, что хотите удалить выбранные операции (${checkboxes.length})?`)) {
+        return;
+    }
+
+    const operationIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-operation-id'));
+
+    // Delete operations sequentially
+    deleteOperationsSequentially(operationIds, 0);
+}
+
+/**
+ * Delete operations sequentially (one by one)
+ */
+function deleteOperationsSequentially(operationIds, index) {
+    if (index >= operationIds.length) {
+        // All operations deleted, reload data
+        console.log('All operations deleted successfully');
+        reloadOperationsData();
+        return;
+    }
+
+    const operationId = operationIds[index];
+    deleteOperationById(operationId)
+        .then(() => {
+            console.log(`Operation ${operationId} deleted (${index + 1}/${operationIds.length})`);
+            // Delete next operation
+            deleteOperationsSequentially(operationIds, index + 1);
+        })
+        .catch(error => {
+            console.error(`Error deleting operation ${operationId}:`, error);
+            alert(`Ошибка при удалении операции ${operationId}`);
+            // Continue with next operation
+            deleteOperationsSequentially(operationIds, index + 1);
+        });
+}
+
+/**
+ * Delete single operation
+ */
+function deleteOperation(operationId) {
+    if (!confirm('Вы уверены, что хотите удалить эту операцию?')) {
+        return;
+    }
+
+    deleteOperationById(operationId)
+        .then(() => {
+            console.log(`Operation ${operationId} deleted`);
+            reloadOperationsData();
+        })
+        .catch(error => {
+            console.error(`Error deleting operation ${operationId}:`, error);
+            alert('Ошибка при удалении операции');
+        });
+}
+
+/**
+ * Delete operation by ID via API
+ */
+function deleteOperationById(operationId) {
+    const formData = new FormData();
+    if (typeof xsrf !== 'undefined' && xsrf) {
+        formData.append('_xsrf', xsrf);
+    }
+
+    return fetch(`https://${window.location.host}/${db}/_m_del/${operationId}?JSON`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    });
+}
+
+/**
+ * Reload operations data after deletion
+ */
+function reloadOperationsData() {
+    const projectId = selectedProject ? selectedProject['ПроектID'] : null;
+    if (!projectId) return;
+
+    // Reload operations data
+    fetch(`https://${window.location.host}/${db}/report/5977?JSON_KV&FR_ProjectID=${projectId}`)
+        .then(r => r.json())
+        .then(operations => {
+            operationsData = operations || [];
+            updateOperationsButtons();
+
+            // If modal is open, refresh it
+            if (currentOperationsProductId) {
+                const productOperations = operationsData.filter(op =>
+                    String(op['ИзделиеID']) === String(currentOperationsProductId)
+                );
+                displayOperationsList(productOperations);
+            }
+        })
+        .catch(error => {
+            console.error('Error reloading operations:', error);
+        });
+}
+
+/**
+ * Close operations modal
+ */
+function closeOperationsModal() {
+    const modal = document.getElementById('operationsModalBackdrop');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    currentOperationsProductId = null;
+
+    // Uncheck all checkboxes
+    document.querySelectorAll('.operation-checkbox').forEach(cb => cb.checked = false);
+    const selectAllCheckbox = document.getElementById('checkAllOperations');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+    }
+}
 
 // Override toggleColumnCheckboxes to only affect visible rows
 const originalToggleColumnCheckboxes = window.toggleColumnCheckboxes;
