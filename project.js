@@ -2699,9 +2699,15 @@ function editProductCell(cell) {
     inputElement.dataset.productId = productId;
     inputElement.dataset.field = field;
 
+    // Flag to prevent double-saving
+    let isSaving = false;
+
     // Handle blur - save and close
     inputElement.addEventListener('blur', function() {
-        saveProductCellEdit(cell, this);
+        if (!isSaving) {
+            isSaving = true;
+            saveProductCellEdit(cell, this);
+        }
     });
 
     // Handle keydown - Enter to save, Escape to cancel, Tab/Shift+Tab to navigate
@@ -2714,6 +2720,8 @@ function editProductCell(cell) {
             cancelProductCellEdit(cell, this);
         } else if (e.key === 'Tab') {
             e.preventDefault();
+            // Set flag to prevent blur handler from double-saving
+            isSaving = true;
             // Save current cell
             saveProductCellEdit(cell, this);
             // Navigate to next/previous editable cell
@@ -3013,8 +3021,8 @@ function updateOperationsButtonDataAndColor(productId, field, value) {
 
         // Get operations for this button and update color
         const productIdFromButton = button.getAttribute('data-product-id');
-        if (productIdFromButton && currentOperations && currentOperations[productIdFromButton]) {
-            const operations = currentOperations[productIdFromButton] || [];
+        if (productIdFromButton) {
+            const operations = operationsData.filter(op => String(op['ИзделиеID']) === String(productIdFromButton));
             const colorData = determineButtonColor(button, operations);
             button.style.background = colorData.background;
             button.title = colorData.title;
