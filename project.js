@@ -3013,8 +3013,8 @@ function updateOperationsButtonDataAndColor(productId, field, value) {
 
         // Get operations for this button and update color
         const productIdFromButton = button.getAttribute('data-product-id');
-        if (productIdFromButton && currentOperations && currentOperations[productIdFromButton]) {
-            const operations = currentOperations[productIdFromButton] || [];
+        if (productIdFromButton && operationsData) {
+            const operations = operationsData.filter(op => String(op['ИзделиеID']) === String(productIdFromButton));
             const colorData = determineButtonColor(button, operations);
             button.style.background = colorData.background;
             button.title = colorData.title;
@@ -3102,8 +3102,8 @@ function updateOperationsButtonsForConstruction(constructionId, field, value) {
 
             // Get operations for this button and update color
             const productId = button.getAttribute('data-product-id');
-            if (productId && currentOperations && currentOperations[productId]) {
-                const operations = currentOperations[productId] || [];
+            if (productId && operationsData) {
+                const operations = operationsData.filter(op => String(op['ИзделиеID']) === String(productId));
                 const colorData = determineButtonColor(button, operations);
                 button.style.background = colorData.background;
                 button.title = colorData.title;
