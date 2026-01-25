@@ -4017,10 +4017,6 @@ function deleteOperationsSequentially(operationIds, index) {
  * Delete single operation
  */
 function deleteOperation(operationId) {
-    if (!confirm('Вы уверены, что хотите удалить эту операцию?')) {
-        return;
-    }
-
     deleteOperationById(operationId)
         .then(() => {
             console.log(`Operation ${operationId} deleted`);
@@ -4028,7 +4024,8 @@ function deleteOperation(operationId) {
         })
         .catch(error => {
             console.error(`Error deleting operation ${operationId}:`, error);
-            alert('Ошибка при удалении операции');
+            // Display the error message from server or a default message
+            alert(error.message || 'Ошибка при удалении операции');
         });
 }
 
@@ -4051,6 +4048,16 @@ function deleteOperationById(operationId) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
+    })
+    .then(data => {
+        // Check if response contains an error field
+        if (data && Array.isArray(data) && data.length > 0 && data[0].error) {
+            throw new Error(data[0].error);
+        }
+        if (data && data.error) {
+            throw new Error(data.error);
+        }
+        return data;
     });
 }
 
