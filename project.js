@@ -4445,7 +4445,7 @@ async function openCreateOperationModal() {
                 const workTypeIds = estimate['Виды работ'].split(',').filter(Boolean);
                 workTypeIds.forEach(id => {
                     // Find the work type name from workTypesReference
-                    const workType = workTypesReference.find(wt => String(wt['Виды работID']) === String(id));
+                    const workType = workTypesReference.find(wt => String(wt['Вид работID']) === String(id));
                     if (workType && !uniqueWorkTypes.has(id)) {
                         uniqueWorkTypes.set(id, workType['Виды работ']);
                     }
