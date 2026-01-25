@@ -4333,7 +4333,7 @@ async function confirmAddOperations() {
         }
 
         // Reload operations data
-        loadOperationsData();
+        reloadOperationsData();
     }, 1000);
 }
 
@@ -4546,7 +4546,7 @@ async function saveNewOperation(event) {
 
         // Reload operations data if we're viewing the same product
         if (currentOperationsContext.productId === productId || !productId) {
-            loadOperationsData();
+            reloadOperationsData();
         }
 
     } catch (error) {
