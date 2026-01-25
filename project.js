@@ -1315,7 +1315,8 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 // Product checkbox and cells (using field names from API with fallbacks)
                 // First cell (Изделие) has tooltip showing which position this product belongs to
                 const prodPositionId = prod['Позиция сметыID'] || prod['Смета проектаID'] || '?';
-                const estimateId = prod['Смета проектаID'] || '';
+                // Use Позиция сметыID as the estimate ID since estimate positions ARE estimates
+                const estimateId = prod['Позиция сметыID'] || prod['Смета проектаID'] || '';
                 const prodId = prod['ИзделиеID'] || '?';
                 const unitId = prod['Ед. изм ID'] || prod['ЕдИзмID'] || '';
                 html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
