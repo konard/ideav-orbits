@@ -3110,8 +3110,8 @@ function updateOperationsButtonsForConstruction(constructionId, field, value) {
 
             // Get operations for this button and update color
             const productId = button.getAttribute('data-product-id');
-            if (productId && currentOperations && currentOperations[productId]) {
-                const operations = currentOperations[productId] || [];
+            if (productId && operationsData) {
+                const operations = operationsData.filter(op => String(op['ИзделиеID']) === String(productId));
                 const colorData = determineButtonColor(button, operations);
                 button.style.background = colorData.background;
                 button.title = colorData.title;
@@ -4341,7 +4341,7 @@ async function confirmAddOperations() {
         }
 
         // Reload operations data
-        loadOperationsData();
+        reloadOperationsData();
     }, 1000);
 }
 
@@ -4554,7 +4554,7 @@ async function saveNewOperation(event) {
 
         // Reload operations data if we're viewing the same product
         if (currentOperationsContext.productId === productId || !productId) {
-            loadOperationsData();
+            reloadOperationsData();
         }
 
     } catch (error) {
