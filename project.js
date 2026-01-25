@@ -1315,67 +1315,27 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 // Product checkbox and cells (using field names from API with fallbacks)
                 // First cell (Изделие) has tooltip showing which position this product belongs to
                 const prodPositionId = prod['Позиция сметыID'] || prod['Смета проектаID'] || '?';
-                const prodId = prod['ИзделиеID'] || '?';
-
-                // ============= COMPREHENSIVE TRACE FOR ISSUE #324 =============
-                console.group(`[#324 TRACE] Building row for product: ${prod['Изделие']} (ID: ${prodId})`);
-
-                // Step 1: Show FULL position object
-                console.log('STEP 1: Position object:', position ? JSON.stringify(position, null, 2) : 'null/undefined');
-
-                // Step 2: Show FULL product object
-                console.log('STEP 2: Product object fields:', Object.keys(prod));
-                console.log('Product data:', {
-                    'ИзделиеID': prod['ИзделиеID'],
-                    'Изделие': prod['Изделие'],
-                    'Позиция сметыID': prod['Позиция сметыID'],
-                    'Смета проектаID': prod['Смета проектаID'],
-                    'КонструкцияID': prod['КонструкцияID']
-                });
-
-                // Step 3: Evaluate OR chain step by step
-                console.log('STEP 3: Evaluating estimateId OR chain:');
-                const positionEstimateId = position && position['Позиция сметыID'];
-                console.log('  - (position && position["Позиция сметыID"]):', {
-                    'position exists': !!position,
-                    'position["Позиция сметыID"]': position ? position['Позиция сметыID'] : 'N/A',
-                    'result': positionEstimateId,
-                    'is truthy': !!positionEstimateId
-                });
-
-                const prodEstimateId = prod['Позиция сметыID'];
-                console.log('  - prod["Позиция сметыID"]:', {
-                    'value': prodEstimateId,
-                    'is truthy': !!prodEstimateId
-                });
-
-                const prodProjectId = prod['Смета проектаID'];
-                console.log('  - prod["Смета проектаID"]:', {
-                    'value': prodProjectId,
-                    'is truthy': !!prodProjectId
-                });
-
                 // Use the position's estimate ID directly since we're already in that context
                 // and products are filtered to belong to this specific position
                 // Fixed: Check if position exists AND has the field (not just if position exists)
-                const estimateId = positionEstimateId || prodEstimateId || prodProjectId || '';
+                const estimateId = (position && position['Позиция сметыID']) || prod['Позиция сметыID'] || prod['Смета проектаID'] || '';
+                const prodId = prod['ИзделиеID'] || '?';
 
-                console.log('STEP 4: Final estimateId:', {
-                    'value': estimateId,
-                    'type': typeof estimateId,
-                    'is empty': estimateId === '',
-                    'as string': String(estimateId),
-                    'trimmed': String(estimateId).trim()
+                // Debug: Log estimateId assignment for issue #321
+                console.log(`[Issue #321 Debug] Product: ${prod['Изделие']} (ID: ${prodId}):`,{
+                    'estimateId assigned': estimateId,
+                    'position?.Позиция сметыID': position ? position['Позиция сметыID'] : 'no position',
+                    'prod.Позиция сметыID': prod['Позиция сметыID'],
+                    'prod.Смета проектаID': prod['Смета проектаID']
                 });
-
                 if (!estimateId || estimateId === '') {
-                    console.error('❌ CRITICAL: estimateId is empty!', {
-                        'This will cause filtering to fail and show ALL work types'
+                    console.warn(`Product ${prod['Изделие']} (ID: ${prodId}) has no estimateId!`, {
+                        'position estimateId': position ? position['Позиция сметыID'] : 'no position',
+                        'product Позиция сметыID': prod['Позиция сметыID'],
+                        'product Смета проектаID': prod['Смета проектаID'],
+                        'All product fields': Object.keys(prod)
                     });
                 }
-
-                console.groupEnd();
-                // ============= END COMPREHENSIVE TRACE =============
                 const unitId = prod['Ед. изм ID'] || prod['ЕдИзмID'] || '';
                 html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
                 html += `<td class="product-cell product-cell-with-operations" title="Позиция сметыID: ${prodPositionId}">
@@ -3909,17 +3869,6 @@ function updateOperationsButtons() {
 function showOperationsModal(event, button) {
     event.stopPropagation();
 
-    // ============= COMPREHENSIVE TRACE FOR ISSUE #324 =============
-    console.group('[#324 TRACE] showOperationsModal called');
-
-    // Show ALL button attributes
-    const allAttrs = {};
-    for (let i = 0; i < button.attributes.length; i++) {
-        const attr = button.attributes[i];
-        allAttrs[attr.name] = attr.value;
-    }
-    console.log('STEP 1: All button attributes:', allAttrs);
-
     const productId = button.getAttribute('data-product-id');
     const productName = button.getAttribute('data-product-name');
     const construction = button.getAttribute('data-construction');
@@ -3927,18 +3876,14 @@ function showOperationsModal(event, button) {
     const estimatePositionId = button.getAttribute('data-estimate-position-id');
     const estimateId = button.getAttribute('data-estimate-id');
 
-    console.log('STEP 2: Extracted key attributes:', {
+    console.log('[Issue #321 Debug] showOperationsModal called for product:', productName, {
         'productId': productId,
-        'productName': productName,
-        'estimatePositionId': estimatePositionId,
-        'estimateId': estimateId,
-        'estimateId type': typeof estimateId,
-        'estimateId value check': {
-            'is null': estimateId === null,
-            'is undefined': estimateId === undefined,
-            'is empty string': estimateId === '',
-            'as string': String(estimateId),
-            'length': estimateId ? estimateId.length : 0
+        'estimateId from button': estimateId,
+        'estimatePositionId from button': estimatePositionId,
+        'all button data attributes': {
+            'data-product-id': button.getAttribute('data-product-id'),
+            'data-estimate-id': button.getAttribute('data-estimate-id'),
+            'data-estimate-position-id': button.getAttribute('data-estimate-position-id')
         }
     });
 
@@ -3950,9 +3895,7 @@ function showOperationsModal(event, button) {
         estimateId: estimateId
     };
 
-    console.log('STEP 3: currentOperationsContext created:', currentOperationsContext);
-    console.groupEnd();
-    // ============= END COMPREHENSIVE TRACE =============
+    console.log('[Issue #321 Debug] currentOperationsContext set to:', currentOperationsContext);
 
     // Filter operations for this product
     const productOperations = operationsData.filter(op => String(op['ИзделиеID']) === String(productId));
@@ -4527,19 +4470,14 @@ async function openCreateOperationModal() {
 
         const workTypes = await response.json();
 
-        // ============= COMPREHENSIVE TRACE FOR ISSUE #324 =============
-        console.group('[#324 TRACE] openCreateOperationModal - Work Types Filtering');
-
-        console.log('STEP 1: Current context:', currentOperationsContext);
-
-        console.log('STEP 2: API Response (report/6631):', {
-            'Total estimates returned': workTypes.length,
-            'All estimates': workTypes.map(e => ({
-                'СметаID': e['СметаID'],
-                'Смета': e['Смета'],
-                'Виды работ': e['Виды работ']
-            }))
-        });
+        // Debug logging
+        console.log('=== Debug: openCreateOperationModal ===');
+        console.log('currentOperationsContext:', currentOperationsContext);
+        console.log('currentOperationsContext.estimateId:', currentOperationsContext.estimateId);
+        console.log('estimateId type:', typeof currentOperationsContext.estimateId);
+        console.log('estimateId is empty?:', !currentOperationsContext.estimateId);
+        console.log('Total estimates from API:', workTypes.length);
+        console.log('All estimates data:', workTypes);
 
         // Populate work types dropdown
         const workTypesSelect = document.getElementById('operationWorkTypes');
@@ -4550,92 +4488,41 @@ async function openCreateOperationModal() {
 
         // Filter to only work types from the current estimate (if estimateId is available and not empty)
         // Note: estimateId comes from product's Позиция сметыID field and should match estimate's СметаID field
-        console.log('STEP 3: Evaluating filter condition:');
-        const estimateIdFromContext = currentOperationsContext.estimateId;
-        console.log('  - estimateId from context:', {
-            'value': estimateIdFromContext,
-            'type': typeof estimateIdFromContext,
-            'is null': estimateIdFromContext === null,
-            'is undefined': estimateIdFromContext === undefined,
-            'is empty string': estimateIdFromContext === '',
-            'as boolean': !!estimateIdFromContext
-        });
+        const hasEstimateId = currentOperationsContext.estimateId && String(currentOperationsContext.estimateId).trim() !== '';
+        console.log('hasEstimateId:', hasEstimateId);
+        console.log('estimateId value:', currentOperationsContext.estimateId);
+        console.log('estimateId as string:', String(currentOperationsContext.estimateId));
+        console.log('estimateId trimmed:', String(currentOperationsContext.estimateId).trim());
 
-        const estimateIdAsString = String(estimateIdFromContext);
-        console.log('  - estimateId as String():', {
-            'value': estimateIdAsString,
-            'length': estimateIdAsString.length
-        });
-
-        const estimateIdTrimmed = estimateIdAsString.trim();
-        console.log('  - estimateId trimmed:', {
-            'value': estimateIdTrimmed,
-            'length': estimateIdTrimmed.length,
-            'isEmpty': estimateIdTrimmed === ''
-        });
-
-        const hasEstimateId = estimateIdFromContext && estimateIdTrimmed !== '';
-        console.log('STEP 4: hasEstimateId result:', {
-            'value': hasEstimateId,
-            'logic': 'estimateIdFromContext && estimateIdTrimmed !== ""',
-            'will filter': hasEstimateId ? 'YES' : 'NO (WILL SHOW ALL WORK TYPES!)'
-        });
-
-        if (!hasEstimateId) {
-            console.error('❌ CRITICAL: hasEstimateId is FALSE!');
-            console.error('This means ALL work types from ALL estimates will be shown!');
-            console.error('The user expects to see only work types from estimate ID:', estimateIdFromContext);
-        }
-
-        console.log('STEP 5: Filtering estimates...');
         const relevantEstimates = hasEstimateId
             ? workTypes.filter(estimate => {
                 const estimateIdStr = String(estimate['СметаID']);
                 const contextIdStr = String(currentOperationsContext.estimateId);
                 const match = estimateIdStr === contextIdStr;
-                console.log(`  - Checking estimate "${estimate['Смета']}" (СметаID=${estimate['СметаID']}):`, {
-                    'estimate СметаID': estimate['СметаID'],
-                    'as string': estimateIdStr,
-                    'context estimateId': currentOperationsContext.estimateId,
-                    'as string': contextIdStr,
-                    'strings match': match,
-                    'INCLUDED': match ? '✓ YES' : '✗ NO'
-                });
+                console.log('Checking estimate:', estimate['Смета'],
+                    'СметаID:', estimate['СметаID'], '(str:', estimateIdStr, ')',
+                    'currentEstimateId:', currentOperationsContext.estimateId, '(str:', contextIdStr, ')',
+                    'match:', match);
                 return match;
             })
             : workTypes;
 
-        console.log('STEP 6: Filter results:', {
-            'Total estimates from API': workTypes.length,
-            'Filter was active': hasEstimateId,
-            'Filtered down to': relevantEstimates.length,
-            'Filtered estimates': relevantEstimates.map(e => ({
-                'СметаID': e['СметаID'],
-                'Смета': e['Смета']
-            }))
-        });
+        console.log('Total workTypes rows:', workTypes.length);
+        console.log('Filter active (hasEstimateId):', hasEstimateId);
+        if (!hasEstimateId) {
+            console.warn('WARNING: No estimateId, showing ALL work types from ALL estimates!');
+        }
 
-        console.log('STEP 7: Extracting work type IDs from filtered estimates...');
+        console.log('Filtered relevantEstimates count:', relevantEstimates.length);
+        console.log('Filtered relevantEstimates:', relevantEstimates);
+
         relevantEstimates.forEach(estimate => {
-            console.log(`  - Processing estimate "${estimate['Смета']}" (СметаID=${estimate['СметаID']}):`, {
-                'Виды работ field': estimate['Виды работ'],
-                'has work types': !!estimate['Виды работ']
-            });
-
             if (estimate['Виды работ']) {
                 const workTypeIds = estimate['Виды работ'].split(',').filter(Boolean);
-                console.log('    Work type IDs found:', workTypeIds);
-
+                console.log('Estimate:', estimate['Смета'], 'СметаID:', estimate['СметаID'], 'Work type IDs:', workTypeIds);
                 workTypeIds.forEach(id => {
                     // Find the work type name from workTypesReference
                     const workType = workTypesReference.find(wt => String(wt['Вид работID']) === String(id));
-                    console.log(`      - Work type ID ${id}:`, {
-                        'found in reference': !!workType,
-                        'name': workType ? workType['Вид работ'] : 'NOT FOUND',
-                        'already in map': uniqueWorkTypes.has(id),
-                        'will add': workType && !uniqueWorkTypes.has(id)
-                    });
-
                     if (workType && !uniqueWorkTypes.has(id)) {
                         uniqueWorkTypes.set(id, workType['Вид работ']);
                     }
@@ -4643,26 +4530,8 @@ async function openCreateOperationModal() {
             }
         });
 
-        console.log('STEP 8: Final work types to display:', {
-            'count': uniqueWorkTypes.size,
-            'work types': Array.from(uniqueWorkTypes.entries()).map(([id, name]) => ({
-                id: id,
-                name: name
-            }))
-        });
-
-        if (hasEstimateId && uniqueWorkTypes.size === 0) {
-            console.error('❌ PROBLEM: Filter was active but NO work types found!');
-            console.error('Expected to find work types for estimate ID:', currentOperationsContext.estimateId);
-        }
-
-        if (!hasEstimateId && uniqueWorkTypes.size > 2) {
-            console.warn('⚠️ WARNING: Showing more than 2 work types because filter was NOT active!');
-            console.warn('This is likely the bug the user is reporting.');
-        }
-
-        console.groupEnd();
-        // ============= END COMPREHENSIVE TRACE =============
+        console.log('Final uniqueWorkTypes:', Array.from(uniqueWorkTypes.entries()));
+        console.log('=== End Debug ===');
 
         // Add options to select
         uniqueWorkTypes.forEach((name, id) => {
