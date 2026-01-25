@@ -3643,9 +3643,59 @@ function applyFilters() {
         }
     });
 
+    // Adjust rowspans after filtering
+    adjustRowspansAfterFilter();
+
     // Update bulk delete and add buttons visibility after filtering
     updateBulkDeleteButtonVisibility();
     updateBulkAddIconVisibility();
+}
+
+// Adjust rowspan values for cells after filtering to account for hidden rows
+function adjustRowspansAfterFilter() {
+    const tbody = document.querySelector('.constructions-table tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    // For each row, check cells with rowspan and adjust based on visible rows
+    rows.forEach((row, rowIndex) => {
+        const cells = row.querySelectorAll('td[rowspan], td.row-number, td.construction-cell, td.estimate-cell');
+
+        cells.forEach(cell => {
+            // Get or restore original rowspan
+            if (!cell.dataset.originalRowspan) {
+                const currentRowspan = cell.getAttribute('rowspan');
+                if (currentRowspan) {
+                    cell.dataset.originalRowspan = currentRowspan;
+                } else {
+                    cell.dataset.originalRowspan = '1';
+                }
+            }
+
+            const originalRowspan = parseInt(cell.dataset.originalRowspan);
+
+            // Count visible rows in the original rowspan range
+            let visibleCount = 0;
+            for (let i = rowIndex; i < rowIndex + originalRowspan && i < rows.length; i++) {
+                if (rows[i].style.display !== 'none') {
+                    visibleCount++;
+                }
+            }
+
+            // Update rowspan based on visible rows
+            if (visibleCount > 1) {
+                cell.setAttribute('rowspan', visibleCount);
+                cell.style.display = '';
+            } else if (visibleCount === 1) {
+                cell.removeAttribute('rowspan');
+                cell.style.display = '';
+            } else {
+                // No visible rows in range - hide the cell
+                cell.style.display = 'none';
+            }
+        });
+    });
 }
 
 // Update filter icon appearance
