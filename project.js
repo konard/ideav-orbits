@@ -3363,9 +3363,11 @@ function populateProductFilterOptions() {
         // Find the product name cell: it's the first product-cell with a title containing "Позиция сметыID"
         const productNameCell = row.querySelector('td.product-cell[title^="Позиция сметыID"]');
         if (productNameCell) {
-            const text = productNameCell.textContent.trim();
-            // Only add valid product names (not empty, not dash, and must be plain text without special chars)
-            if (text && text !== '—' && !text.includes('%') && !text.includes('+')) {
+            // Extract text from the .product-name span, not the entire cell (which includes operations button)
+            const productNameSpan = productNameCell.querySelector('.product-name');
+            const text = productNameSpan ? productNameSpan.textContent.trim() : productNameCell.textContent.trim();
+            // Only add valid product names (not empty, not dash)
+            if (text && text !== '—') {
                 productValues.add(text);
             }
         }
@@ -3574,106 +3576,71 @@ function applyFilters() {
 
     const rows = Array.from(tbody.querySelectorAll('tr'));
 
-    // Group rows by construction (rows that share the same construction cells via rowspan)
-    // We need to track which rows belong to the same construction group
-    const constructionGroups = [];
-    let currentGroup = [];
+    // Track current estimate position value for rows without estimate cells (rowspan handling)
+    let currentEstimateValue = null;
+    let currentConstructionVisible = true;
 
     rows.forEach(row => {
-        // If row has a construction cell (with rowspan or not), it starts a new group
+        let shouldShowRow = true;
+
+        // Check if this row starts a new construction
         const hasConstructionCell = row.querySelector('td.construction-cell');
-        if (hasConstructionCell && currentGroup.length > 0) {
-            // Save previous group
-            constructionGroups.push(currentGroup);
-            currentGroup = [row];
-        } else {
-            currentGroup.push(row);
+        if (hasConstructionCell) {
+            currentConstructionVisible = true; // Reset for new construction
         }
-    });
 
-    // Don't forget the last group
-    if (currentGroup.length > 0) {
-        constructionGroups.push(currentGroup);
-    }
+        // Check estimate filter
+        const estimateCell = row.querySelector('td.estimate-cell');
+        if (estimateCell) {
+            // This row has an estimate cell, extract and remember its value
+            const estimateText = estimateCell.textContent.trim().replace(/\+$/, '').trim();
+            currentEstimateValue = estimateText;
 
-    // Process each construction group
-    constructionGroups.forEach(group => {
-        // Determine if any row in this group should be visible based on filters
-        let groupHasVisibleRow = false;
-
-        group.forEach(row => {
-            let shouldShowRow = true;
-
-            // Check estimate filter
             if (estimateFilterState.selectedValues.size > 0) {
-                const estimateCell = row.querySelector('td.estimate-cell');
-                if (estimateCell) {
-                    const estimateText = estimateCell.textContent.trim().replace(/\+$/, '').trim();
-                    shouldShowRow = shouldShowRow && estimateFilterState.selectedValues.has(estimateText);
+                shouldShowRow = shouldShowRow && estimateFilterState.selectedValues.has(estimateText);
+            }
+        } else {
+            // This row doesn't have an estimate cell (part of rowspan)
+            // Use the current estimate value from the previous row with an estimate cell
+            if (estimateFilterState.selectedValues.size > 0 && currentEstimateValue) {
+                shouldShowRow = shouldShowRow && estimateFilterState.selectedValues.has(currentEstimateValue);
+            }
+        }
+
+        // Check product filter
+        if (productFilterState.selectedValues.size > 0) {
+            const productCell = row.querySelector('td.product-cell[title^="Позиция сметыID"]');
+            if (productCell) {
+                // Extract text from the .product-name span, not the entire cell (which includes operations button)
+                const productNameSpan = productCell.querySelector('.product-name');
+                const productText = productNameSpan ? productNameSpan.textContent.trim() : productCell.textContent.trim();
+                // Only filter if there's an actual product (not "—")
+                if (productText && productText !== '—') {
+                    shouldShowRow = shouldShowRow && productFilterState.selectedValues.has(productText);
                 } else {
-                    // Row doesn't have estimate cell - it's part of a rowspan
-                    // Check if previous row in group has a matching estimate
-                    const prevRowInGroup = group.find(r => r !== row && r.querySelector('td.estimate-cell'));
-                    if (prevRowInGroup) {
-                        const prevEstimateCell = prevRowInGroup.querySelector('td.estimate-cell');
-                        const prevEstimateText = prevEstimateCell.textContent.trim().replace(/\+$/, '').trim();
-                        shouldShowRow = shouldShowRow && estimateFilterState.selectedValues.has(prevEstimateText);
-                    } else {
-                        shouldShowRow = false;
-                    }
+                    // Rows without products (showing "—") should be hidden when product filter is active
+                    shouldShowRow = false;
                 }
-            }
-
-            // Check product filter
-            if (productFilterState.selectedValues.size > 0 && shouldShowRow) {
-                const productCell = row.querySelector('td.product-cell[title^="Позиция сметыID"]');
-                if (productCell) {
-                    const productText = productCell.textContent.trim();
-                    shouldShowRow = shouldShowRow && (productText === '—' || productFilterState.selectedValues.has(productText));
-                } else {
-                    // No product cell in this row - might be acceptable (e.g., rows without products)
-                    // Don't hide the row just because it doesn't have a product
-                }
-            }
-
-            // Track if any row in group should be visible
-            if (shouldShowRow) {
-                groupHasVisibleRow = true;
-            }
-
-            // Store the row's individual visibility decision
-            row.dataset.individualVisibility = shouldShowRow ? 'visible' : 'hidden';
-        });
-
-        // Now apply visibility to all rows in the group
-        // If the group has at least one visible row, show all rows in the group
-        // This preserves the rowspan structure
-        group.forEach(row => {
-            const individuallyVisible = row.dataset.individualVisibility === 'visible';
-
-            if (individuallyVisible) {
-                // Show this row since it matches filters
-                row.style.display = '';
             } else {
-                // Hide this row, but only if no other row in its group is visible
-                if (groupHasVisibleRow) {
-                    // Keep row visible to maintain rowspan structure
-                    row.style.display = '';
-                } else {
-                    // Hide the entire group
-                    row.style.display = 'none';
-
-                    // Reset checkboxes on hidden rows
-                    const checkboxes = row.querySelectorAll('input.compact-checkbox[data-type]');
-                    checkboxes.forEach(cb => {
-                        cb.checked = false;
-                    });
-                }
+                // No product cell - this might be a construction-only row or position-only row
+                // Hide it when product filter is active
+                shouldShowRow = false;
             }
+        }
 
-            // Clean up temporary attribute
-            delete row.dataset.individualVisibility;
-        });
+        // Apply visibility
+        if (shouldShowRow) {
+            row.style.display = '';
+            currentConstructionVisible = true;
+        } else {
+            row.style.display = 'none';
+
+            // Reset checkboxes on hidden rows
+            const checkboxes = row.querySelectorAll('input.compact-checkbox[data-type]');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+            });
+        }
     });
 
     // Update bulk delete and add buttons visibility after filtering
