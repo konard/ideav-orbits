@@ -3993,32 +3993,11 @@ function applyFilters() {
                 }
             }
 
-            // Also check for estimate cells with rowspan
-            // These need special handling to avoid showing filtered-out estimates
-            if (row.style.display === 'none') {
-                const estimateCells = row.querySelectorAll('td.estimate-cell[rowspan], td.estimate-cell[data-original-rowspan], td.col-checkbox[data-type="estimate"][rowspan], td.col-checkbox[data-type="estimate"][data-original-rowspan]');
-
-                if (estimateCells.length > 0) {
-                    let shouldKeepVisible = false;
-
-                    estimateCells.forEach(cell => {
-                        const rowspan = parseInt(cell.getAttribute('data-original-rowspan') || cell.getAttribute('rowspan') || '1');
-
-                        // Check if there are visible rows in the range after this row
-                        for (let i = rowIndex + 1; i < rowIndex + rowspan && i < rows.length; i++) {
-                            if (rows[i].style.display !== 'none') {
-                                shouldKeepVisible = true;
-                                break;
-                            }
-                        }
-                    });
-
-                    if (shouldKeepVisible) {
-                        // Keep this row visible to preserve rowspan structure for estimate cells
-                        row.style.display = '';
-                    }
-                }
-            }
+            // Do NOT preserve estimate cells with rowspan when they're filtered out
+            // Unlike construction cells which span across multiple estimates,
+            // estimate cells should respect the filter and stay hidden
+            // This fixes the bug where filtered-out estimates were shown
+            // due to being un-hidden to preserve their rowspan structure
         }
     });
 
