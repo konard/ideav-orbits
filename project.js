@@ -2456,12 +2456,13 @@ function hideSelectedEstimates() {
 
     const tbody = document.querySelector('.constructions-table tbody');
     const rows = Array.from(tbody.querySelectorAll('tr'));
-    const estimateIds = [];
+    const collapsedPairs = [];
 
     checkedEstimates.forEach(checkbox => {
         const estimateId = checkbox.getAttribute('data-id');
         const constructionId = checkbox.getAttribute('data-construction-id');
-        estimateIds.push(estimateId);
+        const pairKey = `${constructionId}-${estimateId}`;
+        collapsedPairs.push(pairKey);
 
         // Find the row with this estimate checkbox
         let startRowIndex = -1;
@@ -2501,7 +2502,8 @@ function hideSelectedEstimates() {
 
             // This row belongs to our estimate position, collapse it
             row.classList.add('estimate-collapsed');
-            row.setAttribute('data-collapsed-estimate', estimateId);
+            row.setAttribute('data-collapsed-estimate', pairKey);
+            row.setAttribute('data-collapsed-construction', constructionId);
 
             // Add click handler to expand
             row.onclick = function(event) {
@@ -2518,7 +2520,7 @@ function hideSelectedEstimates() {
     });
 
     // Save collapsed state to cookies
-    saveCollapsedState(estimateIds);
+    saveCollapsedState(collapsedPairs);
 
     // Update button visibility
     updateBulkDeleteButtonVisibility();
@@ -2529,33 +2531,34 @@ function hideSelectedEstimates() {
  * Expand a collapsed row
  */
 function expandCollapsedRow(row) {
-    const estimateId = row.getAttribute('data-collapsed-estimate');
-    if (!estimateId) return;
+    const pairKey = row.getAttribute('data-collapsed-estimate');
+    if (!pairKey) return;
 
-    // Find all rows with the same estimate ID
+    // Find all rows with the same construction-estimate pair
     const tbody = row.closest('tbody');
-    const collapsedRows = tbody.querySelectorAll(`tr[data-collapsed-estimate="${estimateId}"]`);
+    const collapsedRows = tbody.querySelectorAll(`tr[data-collapsed-estimate="${pairKey}"]`);
 
     collapsedRows.forEach(r => {
         r.classList.remove('estimate-collapsed');
         r.removeAttribute('data-collapsed-estimate');
+        r.removeAttribute('data-collapsed-construction');
         r.onclick = null;
     });
 
     // Update collapsed state in cookies
-    const collapsedEstimates = getCollapsedEstimates().filter(id => id !== estimateId);
-    saveCollapsedState(collapsedEstimates);
+    const collapsedPairs = getCollapsedEstimates().filter(pair => pair !== pairKey);
+    saveCollapsedState(collapsedPairs);
 }
 
 /**
- * Save collapsed estimate IDs to cookies
+ * Save collapsed construction-estimate pairs to cookies
  */
-function saveCollapsedState(estimateIds) {
+function saveCollapsedState(collapsedPairs) {
     const projectId = selectedProject ? selectedProject['ПроектID'] : '';
     if (!projectId) return;
 
     const cookieName = `collapsed_estimates_${projectId}`;
-    const cookieValue = JSON.stringify(estimateIds);
+    const cookieValue = JSON.stringify(collapsedPairs);
     const expires = new Date();
     expires.setTime(expires.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
 
@@ -2563,7 +2566,7 @@ function saveCollapsedState(estimateIds) {
 }
 
 /**
- * Get collapsed estimate IDs from cookies
+ * Get collapsed construction-estimate pairs from cookies
  */
 function getCollapsedEstimates() {
     const projectId = selectedProject ? selectedProject['ПроектID'] : '';
@@ -2591,19 +2594,22 @@ function getCollapsedEstimates() {
  * Restore collapsed estimate positions from cookies
  */
 function restoreCollapsedState() {
-    const collapsedEstimates = getCollapsedEstimates();
-    if (collapsedEstimates.length === 0) return;
+    const collapsedPairs = getCollapsedEstimates();
+    if (collapsedPairs.length === 0) return;
 
     const tbody = document.querySelector('.constructions-table tbody');
     if (!tbody) return;
 
     const rows = Array.from(tbody.querySelectorAll('tr'));
 
-    collapsedEstimates.forEach(estimateId => {
-        // Find the row with this estimate checkbox
+    collapsedPairs.forEach(pairKey => {
+        // Parse the construction-estimate pair
+        const [constructionId, estimateId] = pairKey.split('-');
+
+        // Find the row with this specific construction-estimate checkbox
         let startRowIndex = -1;
         for (let i = 0; i < rows.length; i++) {
-            const rowEstCheckbox = rows[i].querySelector(`input.compact-checkbox[data-type="estimate"][data-id="${estimateId}"]`);
+            const rowEstCheckbox = rows[i].querySelector(`input.compact-checkbox[data-type="estimate"][data-id="${estimateId}"][data-construction-id="${constructionId}"]`);
             if (rowEstCheckbox) {
                 startRowIndex = i;
                 break;
@@ -2638,7 +2644,8 @@ function restoreCollapsedState() {
 
             // This row belongs to our estimate position, collapse it
             row.classList.add('estimate-collapsed');
-            row.setAttribute('data-collapsed-estimate', estimateId);
+            row.setAttribute('data-collapsed-estimate', pairKey);
+            row.setAttribute('data-collapsed-construction', constructionId);
 
             // Add click handler to expand
             row.onclick = function(event) {
