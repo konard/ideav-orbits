@@ -4018,7 +4018,14 @@ function adjustRowspansAfterFilter() {
             }
         });
 
-        // Second pass: Restore attributes for all cells with original rowspan
+        // Second pass: Remove cloned cells (Fix for issue #390)
+        // Cloned cells were created for visible rows after gaps
+        rows.forEach(row => {
+            const clonedCells = row.querySelectorAll('td[data-cloned]');
+            clonedCells.forEach(cell => cell.remove());
+        });
+
+        // Third pass: Restore attributes for all cells with original rowspan
         rows.forEach(row => {
             const cells = row.querySelectorAll('td[data-original-rowspan]');
             cells.forEach(cell => {
@@ -4108,14 +4115,53 @@ function adjustRowspansAfterFilter() {
                 // Current row is visible
                 cell.style.display = '';
 
-                // Update rowspan based on visible rows
-                if (visibleCount > 1) {
-                    cell.setAttribute('rowspan', visibleCount);
-                } else if (visibleCount === 1) {
-                    cell.removeAttribute('rowspan');
+                // Fix for issue #390: rowspan must span CONSECUTIVE rows only
+                // HTML rowspan cannot skip hidden rows in the middle
+                // Find the last consecutive visible row from current row
+                let lastConsecutiveVisible = rowIndex;
+                for (let i = rowIndex + 1; i < rowIndex + originalRowspan && i < rows.length; i++) {
+                    if (rows[i].style.display === 'none') {
+                        break;  // Stop at first hidden row
+                    }
+                    lastConsecutiveVisible = i;
+                }
+
+                const consecutiveSpan = lastConsecutiveVisible - rowIndex + 1;
+                if (consecutiveSpan > 1) {
+                    cell.setAttribute('rowspan', consecutiveSpan);
                 } else {
-                    // No visible rows in span - shouldn't happen if row itself is visible
                     cell.removeAttribute('rowspan');
+                }
+
+                // Check for visible rows after gaps (hidden rows) in the original span
+                // These rows need their own copies of the cells since rowspan cannot reach them
+                for (let i = lastConsecutiveVisible + 1; i < rowIndex + originalRowspan && i < rows.length; i++) {
+                    if (rows[i].style.display !== 'none') {
+                        // Found a visible row after a gap - it needs its own cells
+                        const targetRow = rows[i];
+
+                        // Check if this cell type already exists in target row
+                        // (to avoid duplicating if already processed)
+                        const existingCells = targetRow.querySelectorAll('td');
+                        const cellIndex = Array.from(row.children).indexOf(cell);
+                        if (cellIndex < existingCells.length) {
+                            // Cell position already occupied, skip
+                            continue;
+                        }
+
+                        // Clone the cell and add to target row
+                        const clonedCell = cell.cloneNode(true);
+                        clonedCell.removeAttribute('rowspan');
+                        clonedCell.removeAttribute('data-moved');
+                        clonedCell.setAttribute('data-cloned', 'true');
+
+                        // Insert at beginning of row to maintain order (№, ☐, Construction, ...)
+                        if (targetRow.firstChild) {
+                            targetRow.insertBefore(clonedCell, targetRow.firstChild);
+                        } else {
+                            targetRow.appendChild(clonedCell);
+                        }
+                    }
                 }
             }
         });
