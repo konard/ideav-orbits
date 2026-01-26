@@ -2493,6 +2493,12 @@ function hideSelectedEstimates() {
                 break;
             }
 
+            // Skip rows with products (cells with class product-cell-with-operations)
+            const hasProduct = row.querySelector('.product-cell-with-operations');
+            if (hasProduct) {
+                continue;
+            }
+
             // This row belongs to our estimate position, collapse it
             row.classList.add('estimate-collapsed');
             row.setAttribute('data-collapsed-estimate', estimateId);
@@ -2622,6 +2628,12 @@ function restoreCollapsedState() {
             if (hasEstimateCheckbox && i > startRowIndex) {
                 // Hit a new estimate position, stop
                 break;
+            }
+
+            // Skip rows with products (cells with class product-cell-with-operations)
+            const hasProduct = row.querySelector('.product-cell-with-operations');
+            if (hasProduct) {
+                continue;
             }
 
             // This row belongs to our estimate position, collapse it
