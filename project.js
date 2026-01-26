@@ -3962,44 +3962,9 @@ function applyFilters() {
 
     console.log(`Результат первого прохода: ${visibleRowCount} видимых, ${hiddenRowCount} скрытых`);
 
-
-    // Second pass: ensure rows with rowspan cells remain visible if they have visible children
-    // This prevents table structure from breaking when first row of a rowspan group is hidden
-    rows.forEach((row, rowIndex) => {
-        if (row.style.display === 'none') {
-            // Check if this hidden row has construction cells with rowspan
-            // Construction cells are critical for table structure, so we must keep them visible
-            const constructionCells = row.querySelectorAll('td.construction-cell[rowspan], td.construction-cell[data-original-rowspan], td.row-number[rowspan], td.row-number[data-original-rowspan], td.col-checkbox[rowspan], td.col-checkbox[data-original-rowspan]');
-
-            if (constructionCells.length > 0) {
-                // Check if there are visible rows in the rowspan range for any of these cells
-                let shouldKeepVisible = false;
-
-                constructionCells.forEach(cell => {
-                    const rowspan = parseInt(cell.getAttribute('data-original-rowspan') || cell.getAttribute('rowspan') || '1');
-
-                    // Check if there are visible rows in the range after this row
-                    for (let i = rowIndex + 1; i < rowIndex + rowspan && i < rows.length; i++) {
-                        if (rows[i].style.display !== 'none') {
-                            shouldKeepVisible = true;
-                            break;
-                        }
-                    }
-                });
-
-                if (shouldKeepVisible) {
-                    // Keep this row visible to preserve rowspan structure for construction cells
-                    row.style.display = '';
-                }
-            }
-
-            // Do NOT preserve estimate cells with rowspan when they're filtered out
-            // Unlike construction cells which span across multiple estimates,
-            // estimate cells should respect the filter and stay hidden
-            // This fixes the bug where filtered-out estimates were shown
-            // due to being un-hidden to preserve their rowspan structure
-        }
-    });
+    // No second pass needed - adjustRowspansAfterFilter() handles all rowspan adjustments
+    // without un-hiding filtered rows. Previous second pass logic was causing filtered-out
+    // estimates to become visible when their construction cells had rowspan to visible rows.
 
     // Adjust rowspans after filtering
     adjustRowspansAfterFilter();
