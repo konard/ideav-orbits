@@ -3885,24 +3885,43 @@ function applyFilters() {
 
     // Second pass: ensure rows with rowspan cells remain visible if they have visible children
     // This prevents table structure from breaking when first row of a rowspan group is hidden
-    // IMPORTANT: Only keep rows visible for structural reasons if they don't have estimate cells
-    // (i.e., construction-only rows). Rows with estimate cells should only be visible if they match the filter.
     rows.forEach((row, rowIndex) => {
         if (row.style.display === 'none') {
-            // Check if this row has an estimate cell
-            const hasEstimateCell = row.querySelector('td.estimate-cell');
+            // Check if this hidden row has construction cells with rowspan
+            // Construction cells are critical for table structure, so we must keep them visible
+            const constructionCells = row.querySelectorAll('td.construction-cell[rowspan], td.construction-cell[data-original-rowspan], td.row-number[rowspan], td.row-number[data-original-rowspan], td.col-checkbox[rowspan], td.col-checkbox[data-original-rowspan]');
 
-            // Only apply structural visibility logic to rows without estimate cells
-            // (construction-only rows or rows within a position's rowspan)
-            if (!hasEstimateCell) {
-                // Check if this hidden row has cells with rowspan
-                const cellsWithRowspan = row.querySelectorAll('td[rowspan], td[data-original-rowspan]');
+            if (constructionCells.length > 0) {
+                // Check if there are visible rows in the rowspan range for any of these cells
+                let shouldKeepVisible = false;
 
-                if (cellsWithRowspan.length > 0) {
-                    // Check if there are visible rows in the rowspan range for any of these cells
+                constructionCells.forEach(cell => {
+                    const rowspan = parseInt(cell.getAttribute('data-original-rowspan') || cell.getAttribute('rowspan') || '1');
+
+                    // Check if there are visible rows in the range after this row
+                    for (let i = rowIndex + 1; i < rowIndex + rowspan && i < rows.length; i++) {
+                        if (rows[i].style.display !== 'none') {
+                            shouldKeepVisible = true;
+                            break;
+                        }
+                    }
+                });
+
+                if (shouldKeepVisible) {
+                    // Keep this row visible to preserve rowspan structure for construction cells
+                    row.style.display = '';
+                }
+            }
+
+            // Also check for estimate cells with rowspan
+            // These need special handling to avoid showing filtered-out estimates
+            if (row.style.display === 'none') {
+                const estimateCells = row.querySelectorAll('td.estimate-cell[rowspan], td.estimate-cell[data-original-rowspan], td.col-checkbox[data-type="estimate"][rowspan], td.col-checkbox[data-type="estimate"][data-original-rowspan]');
+
+                if (estimateCells.length > 0) {
                     let shouldKeepVisible = false;
 
-                    cellsWithRowspan.forEach(cell => {
+                    estimateCells.forEach(cell => {
                         const rowspan = parseInt(cell.getAttribute('data-original-rowspan') || cell.getAttribute('rowspan') || '1');
 
                         // Check if there are visible rows in the range after this row
@@ -3915,7 +3934,7 @@ function applyFilters() {
                     });
 
                     if (shouldKeepVisible) {
-                        // Keep this row visible to preserve rowspan structure
+                        // Keep this row visible to preserve rowspan structure for estimate cells
                         row.style.display = '';
                     }
                 }
@@ -3963,23 +3982,24 @@ function adjustRowspansAfterFilter() {
         return;
     }
 
-    // Process only visible rows when filters are active
+    // Process ALL rows (including hidden ones) when filters are active
     rows.forEach((row, rowIndex) => {
-        // Skip hidden rows
-        if (row.style.display === 'none') return;
-
-        // Find cells with rowspan in this visible row
-        const cellsWithRowspan = row.querySelectorAll('td[rowspan]');
+        // Find cells with rowspan or data-original-rowspan in this row
+        const cellsWithRowspan = row.querySelectorAll('td[rowspan], td[data-original-rowspan]');
 
         cellsWithRowspan.forEach(cell => {
             // Store original rowspan on first encounter
             if (!cell.hasAttribute('data-original-rowspan')) {
-                cell.setAttribute('data-original-rowspan', cell.getAttribute('rowspan'));
+                const currentRowspan = cell.getAttribute('rowspan');
+                if (currentRowspan) {
+                    cell.setAttribute('data-original-rowspan', currentRowspan);
+                }
             }
 
-            const originalRowspan = parseInt(cell.getAttribute('data-original-rowspan'));
+            const originalRowspan = parseInt(cell.getAttribute('data-original-rowspan') || '1');
+            if (originalRowspan === 1) return;
 
-            // Count visible rows in the original rowspan range
+            // Count visible rows in the original rowspan range starting from this row
             let visibleCount = 0;
             for (let i = rowIndex; i < rowIndex + originalRowspan && i < rows.length; i++) {
                 if (rows[i].style.display !== 'none') {
@@ -3987,11 +4007,30 @@ function adjustRowspansAfterFilter() {
                 }
             }
 
-            // Update rowspan based on visible rows
-            if (visibleCount > 1) {
-                cell.setAttribute('rowspan', visibleCount);
-            } else if (visibleCount === 1) {
-                cell.removeAttribute('rowspan');
+            // If the current row (with the rowspan cell) is hidden
+            if (row.style.display === 'none') {
+                // Hide the cell if all rows in its span are hidden
+                if (visibleCount === 0) {
+                    cell.style.display = 'none';
+                } else {
+                    // The cell is in a hidden row but spans into visible rows
+                    // This shouldn't normally happen due to the visibility logic in applyFilters
+                    // But if it does, we should hide this cell as it's in a hidden row
+                    cell.style.display = 'none';
+                }
+            } else {
+                // Current row is visible
+                cell.style.display = '';
+
+                // Update rowspan based on visible rows
+                if (visibleCount > 1) {
+                    cell.setAttribute('rowspan', visibleCount);
+                } else if (visibleCount === 1) {
+                    cell.removeAttribute('rowspan');
+                } else {
+                    // No visible rows in span - shouldn't happen if row itself is visible
+                    cell.removeAttribute('rowspan');
+                }
             }
         });
     });
