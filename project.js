@@ -1324,6 +1324,9 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 const estimateId = (position && position['Позиция сметыID']) || prod['Позиция сметыID'] || prod['Смета проектаID'] || '';
                 const prodId = prod['ИзделиеID'] || '?';
                 const unitId = prod['Ед. изм ID'] || prod['ЕдИзмID'] || '';
+                // Look up unit name from dictionaries
+                const unit = unitId ? dictionaries.units.find(u => u['Ед.изм.ID'] == unitId) : null;
+                const unitName = unit ? unit['Ед.изм.'] : (prod['Ед. изм'] || '—');
                 html += `<td class="col-checkbox"><input type="checkbox" class="compact-checkbox" data-type="product" data-id="${prodId}" onchange="updateBulkDeleteButtonVisibility()"></td>`;
                 html += `<td class="product-cell product-cell-with-operations" title="Позиция сметыID: ${prodPositionId}">
                     <span class="product-name">${escapeHtml(prod['Изделие'] || '—')}</span>
@@ -1343,7 +1346,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                         data-dlina="${escapeHtml(prod['Длина, м'] || prod['Длина мм'] || '')}"
                         data-vysota="${escapeHtml(prod['Высота, м'] || prod['Высота мм'] || '')}"
                         data-ves-m2="${escapeHtml(prod['Вес на м2, кг'] || prod['Вес м2/кг'] || '')}"
-                        data-ed-izm="${escapeHtml(prod['Ед. изм'] || '')}"
+                        data-ed-izm="${escapeHtml(unitName)}"
                         data-kolichestvo="${escapeHtml(prod['Количество'] || '')}"
                         onclick="showOperationsModal(event, this)"
                         title="Просмотр операций"
@@ -1360,7 +1363,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6142" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Площадь, м2'] || prod['Площадь м2'] || '—')}</td>`;
                 html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6146" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Вес на м2, кг'] || prod['Вес м2/кг'] || '—')}</td>`;
                 html += `<td class="product-cell editable" data-col="product-detail" data-product-id="${prodId}" data-field="t6138" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Вес, кг'] || prod['Вес одной'] || '—')}</td>`;
-                html += `<td class="product-cell editable" data-product-id="${prodId}" data-field="t7238" data-field-type="select" data-current-id="${unitId}" onclick="editProductCell(this)">${escapeHtml(prod['Ед. изм'] || '—')}</td>`;
+                html += `<td class="product-cell editable" data-product-id="${prodId}" data-field="t7238" data-field-type="select" data-current-id="${unitId}" onclick="editProductCell(this)">${escapeHtml(unitName)}</td>`;
                 html += `<td class="product-cell editable" data-product-id="${prodId}" data-field="t7237" data-field-type="number" onclick="editProductCell(this)">${escapeHtml(prod['Количество'] || '—')}</td>`;
 
                 html += '</tr>';
