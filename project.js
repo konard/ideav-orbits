@@ -4123,6 +4123,15 @@ function adjustRowspansAfterFilter() {
             // the target row will later find these moved cells in its querySelectorAll.
             // We need to skip them to avoid recalculating rowspan from wrong row index.
             if (cell.hasAttribute('data-moved')) {
+                console.log(`  ⊘ Skipping moved cell in row ${rowIndex}`);
+                return;
+            }
+
+            // Skip cells that were cloned from another row (Fix for issue #398)
+            // Cloned cells should not be processed again as they are copies
+            // and don't represent original rowspan cells
+            if (cell.hasAttribute('data-cloned')) {
+                console.log(`  ⊘ Skipping cloned cell in row ${rowIndex}`);
                 return;
             }
 
@@ -4233,6 +4242,7 @@ function adjustRowspansAfterFilter() {
                         const clonedCell = cell.cloneNode(true);
                         clonedCell.removeAttribute('rowspan');
                         clonedCell.removeAttribute('data-moved');
+                        clonedCell.removeAttribute('data-original-rowspan');  // Fix for issue #398
                         clonedCell.setAttribute('data-cloned', 'true');
 
                         // Insert at beginning of row to maintain order (№, ☐, Construction, ...)
