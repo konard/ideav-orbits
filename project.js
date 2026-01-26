@@ -1324,7 +1324,7 @@ function buildFlatConstructionRows(construction, estimatePositions, rowNumber) {
                 const estimateId = (position && position['Позиция сметыID']) || prod['Позиция сметыID'] || prod['Смета проектаID'] || '';
                 const prodId = prod['ИзделиеID'] || '?';
                 // Try multiple field name variants for unit ID (with/without dots and spaces)
-                const unitId = prod['Ед.изм.ID'] || prod['Ед. изм ID'] || prod['ЕдИзмID'] || '';
+                const unitId = prod['Ед. изм.ID'] || prod['Ед. изм ID'] || prod['ЕдИзмID'] || '';
                 // Look up unit name from dictionaries
                 const unit = unitId ? dictionaries.units.find(u => u['Ед.изм.ID'] == unitId) : null;
                 // Only use the looked-up unit name, never fall back to raw field which might be an ID
@@ -4192,7 +4192,7 @@ function determineButtonColor(button, operations) {
     if (isEmDash(dlina)) missingFields.push('Длина');
     if (isEmDash(vysota)) missingFields.push('Высота');
     if (isEmDash(vesM2)) missingFields.push('Вес м2/кг');
-    if (isEmDash(edIzm)) missingFields.push('Ед. изм');
+    if (isEmDash(edIzm)) missingFields.push('Ед. изм.ID');
     if (isEmDash(kolichestvo)) missingFields.push('Количество');
 
     // If any required fields are missing, return light gray
