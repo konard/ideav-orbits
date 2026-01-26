@@ -3991,6 +3991,34 @@ function adjustRowspansAfterFilter() {
 
     // If no filters are active, restore all original rowspans
     if (!hasActiveFilters) {
+        // First pass: Move cells back to their original rows (Fix for issue #386)
+        // We need to do this before restoring attributes because cells might be in wrong rows
+        rows.forEach(row => {
+            const movedCells = Array.from(row.querySelectorAll('td[data-moved]'));
+            // Collect cells that need to be moved back
+            const cellsToRestore = movedCells.filter(cell =>
+                cell._originalParentRow && cell._originalParentRow !== cell.parentElement
+            );
+
+            if (cellsToRestore.length > 0) {
+                // Remove all cells first
+                cellsToRestore.forEach(cell => cell.remove());
+
+                // Insert them back in reverse order at the beginning to maintain correct order
+                // This ensures cells appear as: №, ☐, Construction, Estimate, Product
+                for (let i = cellsToRestore.length - 1; i >= 0; i--) {
+                    const cell = cellsToRestore[i];
+                    const originalRow = cell._originalParentRow;
+                    if (originalRow.firstChild) {
+                        originalRow.insertBefore(cell, originalRow.firstChild);
+                    } else {
+                        originalRow.appendChild(cell);
+                    }
+                }
+            }
+        });
+
+        // Second pass: Restore attributes for all cells with original rowspan
         rows.forEach(row => {
             const cells = row.querySelectorAll('td[data-original-rowspan]');
             cells.forEach(cell => {
@@ -4003,6 +4031,8 @@ function adjustRowspansAfterFilter() {
                 cell.style.display = '';
                 // Clear the moved flag when restoring
                 cell.removeAttribute('data-moved');
+                // Clear the original parent reference
+                delete cell._originalParentRow;
             });
         });
         return;
@@ -4096,8 +4126,13 @@ function adjustRowspansAfterFilter() {
             // All cells should go to the same target row
             const targetRow = rows[cellsToMove[0].firstVisibleRowIndex];
 
-            // Remove all cells first
+            // Remove all cells first, storing original parent (Fix for issue #386)
             cellsToMove.forEach(({cell}) => {
+                // Store reference to original parent row before moving
+                // This allows us to restore cells to correct rows when filter is cleared
+                if (!cell._originalParentRow) {
+                    cell._originalParentRow = cell.parentElement;
+                }
                 cell.remove();
             });
 
