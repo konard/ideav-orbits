@@ -4038,9 +4038,43 @@ function adjustRowspansAfterFilter() {
                     cell.style.display = 'none';
                 } else {
                     // The cell is in a hidden row but spans into visible rows
-                    // This shouldn't normally happen due to the visibility logic in applyFilters
-                    // But if it does, we should hide this cell as it's in a hidden row
-                    cell.style.display = 'none';
+                    // We need to MOVE this cell to the first visible row in the span
+                    // to preserve table structure (Fix for issue #380)
+
+                    // Find the first visible row in the rowspan range
+                    let firstVisibleRowIndex = -1;
+                    for (let i = rowIndex; i < rowIndex + originalRowspan && i < rows.length; i++) {
+                        if (rows[i].style.display !== 'none') {
+                            firstVisibleRowIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (firstVisibleRowIndex !== -1) {
+                        // Remove cell from current (hidden) row
+                        const cellParent = cell.parentElement;
+                        cell.remove();
+
+                        // Add cell to first visible row at the correct position
+                        const firstVisibleRow = rows[firstVisibleRowIndex];
+                        // Insert at the beginning of the row (before other cells)
+                        if (firstVisibleRow.firstChild) {
+                            firstVisibleRow.insertBefore(cell, firstVisibleRow.firstChild);
+                        } else {
+                            firstVisibleRow.appendChild(cell);
+                        }
+
+                        // Make cell visible and update rowspan
+                        cell.style.display = '';
+                        if (visibleCount > 1) {
+                            cell.setAttribute('rowspan', visibleCount);
+                        } else if (visibleCount === 1) {
+                            cell.removeAttribute('rowspan');
+                        }
+                    } else {
+                        // No visible rows found (shouldn't happen if visibleCount > 0)
+                        cell.style.display = 'none';
+                    }
                 }
             } else {
                 // Current row is visible
