@@ -2494,21 +2494,17 @@ function hideSelectedEstimates() {
             }
 
             // This row belongs to our estimate position, collapse it
-            // Apply estimate-collapsed to td cells starting from "Позиция сметы" column (index 9)
-            const cells = row.querySelectorAll('td');
-            for (let j = 9; j < cells.length; j++) {
-                cells[j].classList.add('estimate-collapsed');
-                cells[j].setAttribute('data-collapsed-estimate', estimateId);
+            row.classList.add('estimate-collapsed');
+            row.setAttribute('data-collapsed-estimate', estimateId);
 
-                // Add click handler to expand
-                cells[j].onclick = function(event) {
-                    // Prevent triggering on checkbox clicks
-                    if (event.target.type === 'checkbox') {
-                        return;
-                    }
-                    expandCollapsedRow(row);
-                };
-            }
+            // Add click handler to expand
+            row.onclick = function(event) {
+                // Prevent triggering on checkbox clicks
+                if (event.target.type === 'checkbox') {
+                    return;
+                }
+                expandCollapsedRow(this);
+            };
         }
 
         // Uncheck the checkbox
@@ -2527,21 +2523,17 @@ function hideSelectedEstimates() {
  * Expand a collapsed row
  */
 function expandCollapsedRow(row) {
-    // Find a cell with the data-collapsed-estimate attribute
-    const collapsedCell = row.querySelector('td[data-collapsed-estimate]');
-    if (!collapsedCell) return;
-
-    const estimateId = collapsedCell.getAttribute('data-collapsed-estimate');
+    const estimateId = row.getAttribute('data-collapsed-estimate');
     if (!estimateId) return;
 
-    // Find all cells with the same estimate ID
+    // Find all rows with the same estimate ID
     const tbody = row.closest('tbody');
-    const collapsedCells = tbody.querySelectorAll(`td[data-collapsed-estimate="${estimateId}"]`);
+    const collapsedRows = tbody.querySelectorAll(`tr[data-collapsed-estimate="${estimateId}"]`);
 
-    collapsedCells.forEach(cell => {
-        cell.classList.remove('estimate-collapsed');
-        cell.removeAttribute('data-collapsed-estimate');
-        cell.onclick = null;
+    collapsedRows.forEach(r => {
+        r.classList.remove('estimate-collapsed');
+        r.removeAttribute('data-collapsed-estimate');
+        r.onclick = null;
     });
 
     // Update collapsed state in cookies
@@ -2633,20 +2625,16 @@ function restoreCollapsedState() {
             }
 
             // This row belongs to our estimate position, collapse it
-            // Apply estimate-collapsed to td cells starting from "Позиция сметы" column (index 9)
-            const cells = row.querySelectorAll('td');
-            for (let j = 9; j < cells.length; j++) {
-                cells[j].classList.add('estimate-collapsed');
-                cells[j].setAttribute('data-collapsed-estimate', estimateId);
+            row.classList.add('estimate-collapsed');
+            row.setAttribute('data-collapsed-estimate', estimateId);
 
-                // Add click handler to expand
-                cells[j].onclick = function(event) {
-                    if (event.target.type === 'checkbox') {
-                        return;
-                    }
-                    expandCollapsedRow(row);
-                };
-            }
+            // Add click handler to expand
+            row.onclick = function(event) {
+                if (event.target.type === 'checkbox') {
+                    return;
+                }
+                expandCollapsedRow(this);
+            };
         }
     });
 }
