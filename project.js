@@ -5191,7 +5191,7 @@ async function saveNewOperation(event) {
 
     try {
         // Build URL with parameters
-        const url = `https://${window.location.host}/${db}/_m_new/700?JSON`;
+        const url = `https://${window.location.host}/${db}/_m_new/700?JSON&up=1`;
 
         // Build form data
         const formData = new URLSearchParams();
