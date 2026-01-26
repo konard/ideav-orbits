@@ -813,7 +813,7 @@ function updateEstimateField(estimateId, field, value) {
     if (!row['isNew'] && apiParam) {
         const formData = new FormData();
         formData.append('_xsrf', xsrf);
-        fetch(`https://${window.location.host}/${db}/_m_set/${estimateId}?JSON&${apiParam}`, {
+        fetch(`https://${window.location.host}/${db}/_m_save/${estimateId}?JSON&${apiParam}`, {
             method: 'POST',
             credentials: 'include',
             body: formData
