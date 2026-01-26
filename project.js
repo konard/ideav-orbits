@@ -5355,7 +5355,7 @@ async function saveNewOperation(event) {
     }
 
     const name = document.getElementById('operationName').value.trim();
-    const productId = document.getElementById('operationProduct').value;
+    const productSelectValue = document.getElementById('operationProduct').value;
     const workTypesSelect = document.getElementById('operationWorkTypes');
     const description = document.getElementById('operationDescription').value.trim();
 
@@ -5378,6 +5378,27 @@ async function saveNewOperation(event) {
         return;
     }
 
+    // Fix for issue #400: Look up ИзделиеID by product name from report/7202
+    let productId = null;
+    if (productSelectValue) {
+        // The dropdown value could be the product ID directly (from currentOperationsContext)
+        // But we need to verify it exists in allProductsReference
+        productId = productSelectValue;
+    } else if (currentOperationsContext.productName) {
+        // If no value selected but we have a product name, look it up in allProductsReference
+        const productName = currentOperationsContext.productName;
+        const matchingProduct = allProductsReference.find(p =>
+            p['Изделие'] && p['Изделие'].trim() === productName.trim()
+        );
+
+        if (matchingProduct && matchingProduct['ИзделиеID']) {
+            productId = matchingProduct['ИзделиеID'];
+            console.log(`Found product ID ${productId} for product name "${productName}" from report/7202`);
+        } else {
+            console.warn(`Could not find product ID for product name "${productName}" in allProductsReference`);
+        }
+    }
+
     try {
         // Build URL with parameters
         const url = `https://${window.location.host}/${db}/_m_new/700?JSON&up=1`;
@@ -5387,7 +5408,7 @@ async function saveNewOperation(event) {
         formData.append('_xsrf', xsrf); // XSRF token
         formData.append('t700', name); // Operation name
         if (productId) {
-            formData.append('t6700', productId); // Product ID (optional)
+            formData.append('t6700', productId); // Product ID (Fix for issue #400)
         }
         formData.append('t5244', selectedWorkTypes.join(',')); // Work types (comma-separated)
         formData.append('t1043', description); // Description
