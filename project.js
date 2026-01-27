@@ -4329,8 +4329,42 @@ function adjustRowspansAfterFilter() {
             // All cells should go to the same target row
             const targetRow = rows[cellsToMove[0].firstVisibleRowIndex];
 
+            // Fix for issue #415: Filter out cells that would duplicate existing cell types in target row
+            // Identifying classes for cell types
+            const identifyingClasses = ['number-cell', 'col-checkbox', 'construction-cell', 'estimate-cell', 'product-cell'];
+
+            const cellsToActuallyMove = cellsToMove.filter(({cell}) => {
+                // Determine the cell type by checking identifying classes
+                const cellType = identifyingClasses.find(cls => cell.classList.contains(cls));
+
+                if (cellType) {
+                    // Special handling for checkbox cells - need to differentiate by data-type
+                    if (cellType === 'col-checkbox') {
+                        const checkbox = cell.querySelector('input[data-type]');
+                        const dataType = checkbox ? checkbox.getAttribute('data-type') : null;
+                        if (dataType) {
+                            // Check if target row already has a checkbox with this data-type
+                            const existingCheckbox = targetRow.querySelector(`td.col-checkbox input[data-type="${dataType}"]`);
+                            if (existingCheckbox) {
+                                console.log(`  ⊘ Target row already has ${cellType} with data-type="${dataType}", skipping move`);
+                                return false; // Don't move this cell
+                            }
+                        }
+                    } else {
+                        // For other cell types, check if target row already has a cell of this type
+                        const existingCell = targetRow.querySelector(`td.${cellType}`);
+                        if (existingCell) {
+                            console.log(`  ⊘ Target row already has ${cellType}, skipping move`);
+                            return false; // Don't move this cell
+                        }
+                    }
+                }
+
+                return true; // Move this cell
+            });
+
             // Remove all cells first, storing original parent (Fix for issue #386)
-            cellsToMove.forEach(({cell}) => {
+            cellsToActuallyMove.forEach(({cell}) => {
                 // Store reference to original parent row before moving
                 // This allows us to restore cells to correct rows when filter is cleared
                 if (!cell._originalParentRow) {
@@ -4341,8 +4375,8 @@ function adjustRowspansAfterFilter() {
 
             // Insert cells at the beginning of target row in correct order
             // We insert in reverse order at the beginning to maintain original order
-            for (let i = cellsToMove.length - 1; i >= 0; i--) {
-                const {cell, visibleCount} = cellsToMove[i];
+            for (let i = cellsToActuallyMove.length - 1; i >= 0; i--) {
+                const {cell, visibleCount} = cellsToActuallyMove[i];
 
                 // Insert at beginning
                 if (targetRow.firstChild) {
