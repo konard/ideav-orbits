@@ -5100,6 +5100,22 @@ async function confirmAddOperations() {
     let completed = 0;
     const total = operations.length;
 
+    // Fix for issue #402: Look up ИзделиеID from report/7202 by product name
+    let productIdForT6700 = null;
+    if (currentOperationsContext.productName) {
+        const productName = currentOperationsContext.productName;
+        const matchingProduct = allProductsReference.find(p =>
+            p['Изделие'] && p['Изделие'].trim() === productName.trim()
+        );
+
+        if (matchingProduct && matchingProduct['ИзделиеID']) {
+            productIdForT6700 = matchingProduct['ИзделиеID'];
+            console.log(`[Issue #402] Found product ID ${productIdForT6700} for product name "${productName}" from report/7202`);
+        } else {
+            console.warn(`[Issue #402] Could not find product ID for product name "${productName}" in allProductsReference (report/7202)`);
+        }
+    }
+
     // Add operations sequentially
     for (const operation of operations) {
         try {
@@ -5109,6 +5125,10 @@ async function confirmAddOperations() {
             formData.append('t695', operation.name);
             formData.append('t702', operation.id);
             formData.append('_xsrf', xsrf);
+            // Fix for issue #402: Add t6700 parameter with ИзделиеID from report/7202
+            if (productIdForT6700) {
+                formData.append('t6700', productIdForT6700);
+            }
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -5718,6 +5738,22 @@ async function confirmBulkAddOperations() {
         const productData = constructionProducts.find(p => String(p['ИзделиеID']) === String(product.productId));
         const productTypeId = productData ? (productData['Изделие'] || '') : '';
 
+        // Fix for issue #402: Look up ИзделиеID from report/7202 by product name
+        let productIdForT6700 = null;
+        if (productData && productData['Изделие']) {
+            const productName = productData['Изделие'];
+            const matchingProduct = allProductsReference.find(p =>
+                p['Изделие'] && p['Изделие'].trim() === productName.trim()
+            );
+
+            if (matchingProduct && matchingProduct['ИзделиеID']) {
+                productIdForT6700 = matchingProduct['ИзделиеID'];
+                console.log(`[Issue #402] Found product ID ${productIdForT6700} for product name "${productName}" from report/7202`);
+            } else {
+                console.warn(`[Issue #402] Could not find product ID for product name "${productName}" in allProductsReference (report/7202)`);
+            }
+        }
+
         // Get existing operations for this product
         const existingOps = operationsData
             .filter(op => String(op['ИзделиеID']) === String(product.productId))
@@ -5759,6 +5795,10 @@ async function confirmBulkAddOperations() {
                 formData.append('t695', operation.name);
                 formData.append('t702', operation.id);
                 formData.append('_xsrf', xsrf);
+                // Fix for issue #402: Add t6700 parameter with ИзделиеID from report/7202
+                if (productIdForT6700) {
+                    formData.append('t6700', productIdForT6700);
+                }
 
                 // Issue #402: Look up ИзделиеID from report/7202 by product name
                 if (productData && productData['Изделие'] && allProductsReference) {
