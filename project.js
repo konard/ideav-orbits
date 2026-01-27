@@ -3984,6 +3984,9 @@ function applyFilters() {
 
     // Track current estimate position value for rows without estimate cells (rowspan handling)
     let currentEstimateValue = null;
+    // Track current product value for rows without product cells (rowspan handling) - Issue #413
+    let currentProductValue = null;
+    let currentProductRowsRemaining = 0;
     let currentConstructionVisible = true;
     let visibleRowCount = 0;
     let hiddenRowCount = 0;
@@ -4015,13 +4018,19 @@ function applyFilters() {
             }
         }
 
-        // Check product filter
+        // Check product filter (Issue #413: track current product value across rowspans)
         if (productFilterState.selectedValues.size > 0) {
             const productCell = row.querySelector('td.product-cell[title^="Позиция сметыID"]');
             if (productCell) {
-                // Extract text from the .product-name span, not the entire cell (which includes operations button)
+                // This row has a product cell, extract and remember its value
                 const productNameSpan = productCell.querySelector('.product-name');
                 const productText = productNameSpan ? productNameSpan.textContent.trim() : productCell.textContent.trim();
+
+                // Track this product value and its rowspan for subsequent rows
+                currentProductValue = productText;
+                const rowspanAttr = productCell.getAttribute('rowspan') || productCell.getAttribute('data-original-rowspan');
+                currentProductRowsRemaining = rowspanAttr ? parseInt(rowspanAttr) : 1;
+
                 // Only filter if there's an actual product (not "—")
                 if (productText && productText !== '—') {
                     shouldShowRow = shouldShowRow && productFilterState.selectedValues.has(productText);
@@ -4030,9 +4039,29 @@ function applyFilters() {
                     shouldShowRow = false;
                 }
             } else {
-                // No product cell - this might be a construction-only row or position-only row
-                // Hide it when product filter is active
-                shouldShowRow = false;
+                // No product cell in this row - check if we're within a product's rowspan
+                if (currentProductRowsRemaining > 0) {
+                    // We're still within the previous product's rowspan
+                    currentProductRowsRemaining--;
+                    if (currentProductValue && currentProductValue !== '—') {
+                        shouldShowRow = shouldShowRow && productFilterState.selectedValues.has(currentProductValue);
+                    } else {
+                        shouldShowRow = false;
+                    }
+                } else {
+                    // No product cell and not within a rowspan
+                    // This might be a construction-only row - hide it when product filter is active
+                    shouldShowRow = false;
+                }
+            }
+        } else {
+            // Product filter not active - just decrement rowspan counter if applicable
+            const productCell = row.querySelector('td.product-cell[title^="Позиция сметыID"]');
+            if (productCell) {
+                const rowspanAttr = productCell.getAttribute('rowspan') || productCell.getAttribute('data-original-rowspan');
+                currentProductRowsRemaining = rowspanAttr ? parseInt(rowspanAttr) : 1;
+            } else if (currentProductRowsRemaining > 0) {
+                currentProductRowsRemaining--;
             }
         }
 
