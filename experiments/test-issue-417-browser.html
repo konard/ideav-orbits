@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issue #417 - Table Filter Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .description {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f0f7ff;
+            border-radius: 4px;
+        }
+        .controls label {
+            display: inline-block;
+            margin-right: 20px;
+            font-weight: bold;
+        }
+        .controls select {
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .controls button {
+            padding: 6px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background: #0056b3;
+        }
+        .controls button.clear {
+            background: #6c757d;
+        }
+        .controls button.clear:hover {
+            background: #545b62;
+        }
+        .constructions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .constructions-table th {
+            background: #343a40;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 500;
+            border: 1px solid #dee2e6;
+        }
+        .constructions-table th.col-estimate {
+            background-color: #1a5490;
+        }
+        .constructions-table th.col-product {
+            background-color: #856404;
+        }
+        .constructions-table td {
+            padding: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .constructions-table td[rowspan] {
+            vertical-align: middle;
+            border-right: 2px solid #333;
+            font-weight: 500;
+        }
+        .constructions-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .constructions-table tr:hover {
+            background-color: #e9ecef;
+        }
+        .constructions-table td.estimate-cell {
+            background-color: #f8fbff;
+        }
+        .constructions-table td.product-cell {
+            background-color: #fffef8;
+        }
+        .constructions-table td.construction-cell {
+            background-color: #fff;
+        }
+        .log {
+            margin-top: 30px;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px;
+        }
+        .log-entry.error {
+            color: #dc3545;
+            font-weight: bold;
+            background: #f8d7da;
+            padding: 5px;
+            margin: 5px 0;
+        }
+        .log-entry.warning {
+            color: #856404;
+        }
+        .log-entry.success {
+            color: #155724;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.ok {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Issue #417: Test Table Filter with Rowspan</h1>
+        <div class="description">
+            This page reproduces the table structure from issues #413 and #415 to test the filtering logic.
+            The table has vertically merged cells (rowspan) for constructions and estimate positions.
+        </div>
+
+        <div class="controls">
+            <label>Filter by Estimate:</label>
+            <select id="estimateFilter">
+                <option value="">-- All --</option>
+                <option value="Монтаж каркаса">Монтаж каркаса</option>
+                <option value="Монтаж заполнений">Монтаж заполнений</option>
+                <option value="Монтаж примыканий">Монтаж примыканий</option>
+                <option value="Отдирание пленки">Отдирание пленки</option>
+            </select>
+
+            <label style="margin-left: 30px;">Filter by Product:</label>
+            <select id="productFilter">
+                <option value="">-- All --</option>
+                <option value="Каркас">Каркас</option>
+                <option value="Заполнение">Заполнение</option>
+                <option value="Примыкания">Примыкания</option>
+            </select>
+
+            <button onclick="applyFilters()" style="margin-left: 20px;">Apply Filters</button>
+            <button onclick="clearFilters()" class="clear">Clear Filters</button>
+            <button onclick="validateTable()" style="margin-left: 20px; background: #28a745;">Validate Table</button>
+        </div>
+
+        <div id="status"></div>
+
+        <table class="constructions-table">
+            <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Конструкция</th>
+                    <th class="col-estimate">Позиция сметы</th>
+                    <th class="col-product">Изделие</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Table will be generated by JavaScript -->
+            </tbody>
+        </table>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        // Sample data from issue #415
+        const testData = {
+            constructions: [
+                {id: '6987', name: 'ВВ-1.1'},
+                {id: '6988', name: 'ВВ-1.2'},
+                {id: '6817', name: 'ВВ-1.2'},
+                {id: '6821', name: 'ВВ-4.35'},
+                {id: '7297', name: 'ВВ-2.2'}
+            ],
+            estimates: [
+                {id: '6972', name: 'Монтаж каркаса'},
+                {id: '6976', name: 'Монтаж заполнений'},
+                {id: '6973', name: 'Монтаж примыканий'},
+                {id: '7295', name: 'Отдирание пленки'},
+                {id: '7700', name: 'Смета без рабо'}
+            ],
+            products: [
+                // Construction ВВ-1.1 (6987)
+                {constructionId: '6987', estimateId: '6972', name: 'Каркас'},
+                {constructionId: '6987', estimateId: '6976', name: 'Заполнение'},
+                {constructionId: '6987', estimateId: '6976', name: 'Заполнение'},
+                {constructionId: '6987', estimateId: '6973', name: '—'},
+                {constructionId: '6987', estimateId: '7295', name: 'Каркас'},
+                {constructionId: '6987', estimateId: '7700', name: '—'},
+                // Construction ВВ-1.2 (6988)
+                {constructionId: '6988', estimateId: '6972', name: 'Примыкания'},
+                {constructionId: '6988', estimateId: '6972', name: 'Каркас'},
+                {constructionId: '6988', estimateId: '6972', name: 'Каркас'},
+                {constructionId: '6988', estimateId: '6976', name: 'Примыкания'},
+                {constructionId: '6988', estimateId: '6976', name: 'Заполнение'},
+                {constructionId: '6988', estimateId: '6976', name: 'Заполнение'},
+                {constructionId: '6988', estimateId: '6973', name: '—'},
+                {constructionId: '6988', estimateId: '7295', name: '—'},
+                {constructionId: '6988', estimateId: '7700', name: '—'},
+                // Construction ВВ-1.2 (6817)
+                {constructionId: '6817', estimateId: '6972', name: 'Каркас'},
+                {constructionId: '6817', estimateId: '6976', name: 'Заполнение'},
+                {constructionId: '6817', estimateId: '6976', name: 'Заполнение'},
+                {constructionId: '6817', estimateId: '6976', name: 'Заполнение'},
+                {constructionId: '6817', estimateId: '6973', name: '—'},
+                {constructionId: '6817', estimateId: '7295', name: 'Каркас'},
+                {constructionId: '6817', estimateId: '7700', name: '—'},
+                // Construction ВВ-4.35 (6821)
+                {constructionId: '6821', estimateId: '6972', name: 'Каркас'},
+                {constructionId: '6821', estimateId: '6976', name: 'Заполнение'},
+                {constructionId: '6821', estimateId: '6973', name: '—'},
+                {constructionId: '6821', estimateId: '7295', name: 'Каркас'},
+                {constructionId: '6821', estimateId: '7700', name: '—'},
+                // Construction ВВ-2.2 (7297)
+                {constructionId: '7297', estimateId: '6972', name: 'Каркас'},
+                {constructionId: '7297', estimateId: '6976', name: 'Заполнение'},
+                {constructionId: '7297', estimateId: '6973', name: '—'},
+                {constructionId: '7297', estimateId: '7295', name: '—'},
+                {constructionId: '7297', estimateId: '7700', name: '—'}
+            ]
+        };
+
+        let logEntries = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = `[${timestamp}] ${message}`;
+            logEntries.push({entry, type});
+
+            const logDiv = document.getElementById('log');
+            const entryDiv = document.createElement('div');
+            entryDiv.className = `log-entry ${type}`;
+            entryDiv.textContent = entry;
+            logDiv.appendChild(entryDiv);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            logEntries = [];
+        }
+
+        function generateTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            let rowNum = 1;
+
+            testData.constructions.forEach((construction, constIndex) => {
+                // Group products by estimate
+                const productsByEstimate = {};
+                testData.products.filter(p => p.constructionId === construction.id).forEach(prod => {
+                    if (!productsByEstimate[prod.estimateId]) {
+                        productsByEstimate[prod.estimateId] = [];
+                    }
+                    productsByEstimate[prod.estimateId].push(prod);
+                });
+
+                // Calculate total rows for construction rowspan
+                let totalRows = 0;
+                testData.estimates.forEach(est => {
+                    const products = productsByEstimate[est.id] || [];
+                    totalRows += Math.max(1, products.length);
+                });
+
+                let firstRowOfConstruction = true;
+
+                testData.estimates.forEach((estimate, estIndex) => {
+                    const products = productsByEstimate[estimate.id] || [];
+                    const rowsForEstimate = Math.max(1, products.length);
+                    let firstRowOfEstimate = true;
+
+                    for (let i = 0; i < rowsForEstimate; i++) {
+                        const product = products[i] || {name: '—'};
+                        const row = tbody.insertRow();
+
+                        // Construction cells (only first row)
+                        if (firstRowOfConstruction) {
+                            const cell1 = row.insertCell();
+                            cell1.textContent = rowNum;
+                            cell1.rowSpan = totalRows;
+
+                            const cell2 = row.insertCell();
+                            cell2.textContent = construction.name;
+                            cell2.className = 'construction-cell';
+                            cell2.rowSpan = totalRows;
+                            cell2.setAttribute('data-original-rowspan', totalRows);
+
+                            firstRowOfConstruction = false;
+                        }
+
+                        // Estimate cell (only first row of estimate)
+                        if (firstRowOfEstimate) {
+                            const cell3 = row.insertCell();
+                            cell3.textContent = estimate.name;
+                            cell3.className = 'estimate-cell';
+                            cell3.rowSpan = rowsForEstimate;
+                            cell3.setAttribute('data-original-rowspan', rowsForEstimate);
+
+                            firstRowOfEstimate = false;
+                        }
+
+                        // Product cell (every row)
+                        const cell4 = row.insertCell();
+                        cell4.textContent = product.name;
+                        cell4.className = 'product-cell';
+                    }
+                });
+
+                rowNum++;
+            });
+
+            log('Table generated with ' + tbody.rows.length + ' rows', 'success');
+        }
+
+        function applyFilters() {
+            clearLog();
+            const estimateFilter = document.getElementById('estimateFilter').value;
+            const productFilter = document.getElementById('productFilter').value;
+
+            log(`Applying filters: Estimate="${estimateFilter}", Product="${productFilter}"`);
+
+            const tbody = document.getElementById('tableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            let currentEstimateValue = null;
+            let currentProductValue = null;
+            let currentProductRowsRemaining = 0;
+            let visibleCount = 0;
+            let hiddenCount = 0;
+
+            // First pass: hide/show rows based on filter
+            rows.forEach((row, rowIndex) => {
+                let shouldShowRow = true;
+
+                // Check estimate filter
+                const estimateCell = row.querySelector('td.estimate-cell');
+                if (estimateCell) {
+                    currentEstimateValue = estimateCell.textContent.trim();
+                    if (estimateFilter && currentEstimateValue !== estimateFilter) {
+                        shouldShowRow = false;
+                    }
+                } else if (estimateFilter && currentEstimateValue !== estimateFilter) {
+                    shouldShowRow = false;
+                }
+
+                // Check product filter
+                const productCell = row.querySelector('td.product-cell');
+                if (productFilter) {
+                    if (productCell) {
+                        currentProductValue = productCell.textContent.trim();
+                        currentProductRowsRemaining = 1;
+                        if (currentProductValue !== productFilter && currentProductValue !== '—') {
+                            shouldShowRow = false;
+                        } else if (currentProductValue === '—') {
+                            shouldShowRow = false;
+                        }
+                    } else {
+                        shouldShowRow = false;
+                    }
+                }
+
+                row.style.display = shouldShowRow ? '' : 'none';
+                if (shouldShowRow) visibleCount++; else hiddenCount++;
+            });
+
+            log(`First pass: ${visibleCount} visible, ${hiddenCount} hidden`);
+
+            // Second pass: adjust rowspans
+            adjustRowspansAfterFilter();
+
+            // Validate
+            setTimeout(() => validateTable(), 100);
+        }
+
+        function adjustRowspansAfterFilter() {
+            const tbody = document.getElementById('tableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            const estimateFilter = document.getElementById('estimateFilter').value;
+            const productFilter = document.getElementById('productFilter').value;
+            const hasActiveFilters = estimateFilter || productFilter;
+
+            if (!hasActiveFilters) {
+                log('No active filters, restoring original rowspans');
+                rows.forEach(row => {
+                    row.querySelectorAll('td[data-original-rowspan]').forEach(cell => {
+                        const originalRowspan = cell.getAttribute('data-original-rowspan');
+                        if (originalRowspan && originalRowspan !== '1') {
+                            cell.setAttribute('rowspan', originalRowspan);
+                        } else {
+                            cell.removeAttribute('rowspan');
+                        }
+                        cell.style.display = '';
+                        cell.removeAttribute('data-moved');
+                        cell.removeAttribute('data-cloned');
+                    });
+                });
+                return;
+            }
+
+            log('Adjusting rowspans for filtered table...');
+
+            rows.forEach((row, rowIndex) => {
+                const cellsWithRowspan = row.querySelectorAll('td[rowspan], td[data-original-rowspan]');
+                const isVisible = row.style.display !== 'none';
+
+                if (cellsWithRowspan.length > 0 && !isVisible) {
+                    log(`Row ${rowIndex} (HIDDEN): ${cellsWithRowspan.length} cells with rowspan`);
+                }
+
+                const cellsToMove = [];
+
+                cellsWithRowspan.forEach(cell => {
+                    if (cell.hasAttribute('data-moved') || cell.hasAttribute('data-cloned')) {
+                        return; // Skip already moved/cloned cells
+                    }
+
+                    if (!cell.hasAttribute('data-original-rowspan')) {
+                        const currentRowspan = cell.getAttribute('rowspan');
+                        if (currentRowspan) {
+                            cell.setAttribute('data-original-rowspan', currentRowspan);
+                        }
+                    }
+
+                    const originalRowspan = parseInt(cell.getAttribute('data-original-rowspan') || '1');
+                    if (originalRowspan === 1) return;
+
+                    // Count visible rows in span
+                    let visibleCount = 0;
+                    for (let i = rowIndex; i < rowIndex + originalRowspan && i < rows.length; i++) {
+                        if (rows[i].style.display !== 'none') {
+                            visibleCount++;
+                        }
+                    }
+
+                    if (row.style.display === 'none') {
+                        if (visibleCount === 0) {
+                            cell.style.display = 'none';
+                        } else {
+                            // Find first visible row
+                            let firstVisibleRowIndex = -1;
+                            for (let i = rowIndex; i < rowIndex + originalRowspan && i < rows.length; i++) {
+                                if (rows[i].style.display !== 'none') {
+                                    firstVisibleRowIndex = i;
+                                    break;
+                                }
+                            }
+
+                            if (firstVisibleRowIndex !== -1) {
+                                cellsToMove.push({cell, firstVisibleRowIndex, visibleCount});
+                            }
+                        }
+                    } else {
+                        // Visible row - adjust rowspan to consecutive visible rows only
+                        let consecutiveVisible = 1;
+                        for (let i = rowIndex + 1; i < rowIndex + originalRowspan && i < rows.length; i++) {
+                            if (rows[i].style.display === 'none') break;
+                            consecutiveVisible++;
+                        }
+
+                        if (consecutiveVisible > 1) {
+                            cell.setAttribute('rowspan', consecutiveVisible);
+                        } else {
+                            cell.removeAttribute('rowspan');
+                        }
+                    }
+                });
+
+                // Move cells
+                if (cellsToMove.length > 0) {
+                    const targetRow = rows[cellsToMove[0].firstVisibleRowIndex];
+                    log(`Moving ${cellsToMove.length} cells from row ${rowIndex} to row ${cellsToMove[0].firstVisibleRowIndex}`, 'warning');
+
+                    // Filter out cells that would create duplicates
+                    const cellsToActuallyMove = cellsToMove.filter(({cell}) => {
+                        const cellType = cell.classList.contains('construction-cell') ? 'construction-cell' :
+                                        cell.classList.contains('estimate-cell') ? 'estimate-cell' :
+                                        cell.classList.contains('product-cell') ? 'product-cell' : null;
+
+                        if (cellType) {
+                            const existingCell = targetRow.querySelector(`td.${cellType}`);
+                            if (existingCell) {
+                                log(`  ⊘ Target row already has ${cellType}, skipping move`, 'error');
+                                return false;
+                            }
+                        }
+
+                        log(`  ✓ Moving ${cellType || 'cell'}`, 'success');
+                        return true;
+                    });
+
+                    // Move cells
+                    cellsToActuallyMove.forEach(({cell, visibleCount}) => {
+                        cell.remove();
+                        if (targetRow.firstChild) {
+                            targetRow.insertBefore(cell, targetRow.firstChild);
+                        } else {
+                            targetRow.appendChild(cell);
+                        }
+
+                        cell.setAttribute('data-moved', 'true');
+                        cell.style.display = '';
+                        if (visibleCount > 1) {
+                            cell.setAttribute('rowspan', visibleCount);
+                        } else {
+                            cell.removeAttribute('rowspan');
+                        }
+                    });
+                }
+            });
+        }
+
+        function clearFilters() {
+            document.getElementById('estimateFilter').value = '';
+            document.getElementById('productFilter').value = '';
+            generateTable();
+            clearLog();
+            log('Filters cleared, table regenerated', 'success');
+            document.getElementById('status').innerHTML = '';
+        }
+
+        function validateTable() {
+            clearLog();
+            log('Validating table structure...');
+
+            const tbody = document.getElementById('tableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => r.style.display !== 'none');
+
+            let errors = [];
+            let warnings = [];
+
+            rows.forEach((row, index) => {
+                const cells = Array.from(row.cells);
+                const cellTypes = cells.map(c => {
+                    if (c.classList.contains('construction-cell')) return 'construction';
+                    if (c.classList.contains('estimate-cell')) return 'estimate';
+                    if (c.classList.contains('product-cell')) return 'product';
+                    return 'other';
+                });
+
+                log(`Row ${index}: ${cellTypes.join(', ')}`);
+
+                // Check for duplicate cell types
+                const estimateCells = cells.filter(c => c.classList.contains('estimate-cell'));
+                if (estimateCells.length > 1) {
+                    const msg = `Row ${index} has ${estimateCells.length} estimate cells! (DUPLICATE!)`;
+                    errors.push(msg);
+                    log(msg, 'error');
+                }
+
+                const constructionCells = cells.filter(c => c.classList.contains('construction-cell'));
+                if (constructionCells.length > 1) {
+                    const msg = `Row ${index} has ${constructionCells.length} construction cells! (DUPLICATE!)`;
+                    errors.push(msg);
+                    log(msg, 'error');
+                }
+            });
+
+            const statusDiv = document.getElementById('status');
+            if (errors.length === 0) {
+                statusDiv.className = 'status ok';
+                statusDiv.innerHTML = '✅ Table structure is valid - no duplicate cells found';
+                log('✅ Validation passed!', 'success');
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ Table structure is INVALID - found ${errors.length} error(s):<br>` +
+                                     errors.map(e => `&nbsp;&nbsp;• ${e}`).join('<br>');
+                log(`❌ Validation failed with ${errors.length} errors`, 'error');
+            }
+        }
+
+        // Initialize
+        window.onload = () => {
+            generateTable();
+            log('Page loaded, table initialized', 'success');
+        };
+    </script>
+</body>
+</html>
